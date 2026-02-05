@@ -1,9 +1,17 @@
-FROM rust:1.80 as builder
+FROM rustlang/rust:nightly AS builder
 
 WORKDIR /app
 
-# Copy source files
-COPY . .
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy manifest and source files
+COPY Cargo.toml ./
+COPY Cargo.lock ./
+COPY src ./src
 
 # Build the application
 RUN cargo build --release
@@ -22,8 +30,8 @@ WORKDIR /app
 # Copy the binary from the builder stage
 COPY --from=builder /app/target/release/backend ./backend
 
-# Expose the port (Railway will set PORT environment variable)
-EXPOSE 4000
+# Expose port - Railway will set PORT environment variable
+EXPOSE ${PORT:-4000}
 
 # Use a startup script to handle Railway's PORT variable
 CMD PORT=${PORT:-4000} exec ./backend

@@ -3,4 +3,3 @@ target/
 .github/
 .vscode/
 *.md
-Cargo.lock

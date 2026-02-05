@@ -1,4 +1,4 @@
-use axum::{Router, routing::post};
+use axum::{response::IntoResponse, routing::get, Router, routing::post};
 use std::env;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
@@ -8,6 +8,10 @@ mod models;
 mod parser;
 mod routes;
 
+async fn health_check() -> impl IntoResponse {
+    axum::Json(serde_json::json!({"status": "healthy"}))
+}
+
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
@@ -16,13 +20,16 @@ async fn main() {
 
     info!("Logger initialized");
 
-    let app = Router::new().route("/parse", post(routes::parse_repo_handler));
+    let app = Router::new()
+        .route("/parse", post(routes::parse_repo_handler))
+        .route("/", get(health_check))
+        .route("/health", get(health_check));
 
     let port = env::var("PORT")
         .unwrap_or_else(|_| "4000".to_string())
         .parse::<u16>()
         .expect("PORT must be a valid number");
-    
+
     let addr = format!("0.0.0.0:{}", port);
     info!("Server listening on http://{}", addr);
 
