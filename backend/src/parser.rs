@@ -1,4 +1,4 @@
-use crate::languages::{js_parser, rs_parser, ts_parser};
+use crate::languages::{js_parser, py_parser, rs_parser, ts_parser};
 use crate::models::{CityStats, GameEntity, Route, RouteType, WorldMeta, WorldSeed};
 use std::collections::HashMap;
 use std::fs;
@@ -36,6 +36,10 @@ fn parse_single_file(path: &Path, relative_path: &str) -> Option<ParsedFile> {
         "js" | "jsx" => {
             let (entities, imports) = js_parser::parse_javascript_code(&source_code, &file_id);
             (entities, imports, "js")
+        }
+        "py" => {
+            let (entities, imports) = py_parser::parse_python_code(&source_code, &file_id);
+            (entities, imports, "py")
         }
         _ => return None,
     };
