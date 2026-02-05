@@ -1,4 +1,5 @@
 use axum::{Router, routing::post};
+use std::env;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
@@ -17,7 +18,12 @@ async fn main() {
 
     let app = Router::new().route("/parse", post(routes::parse_repo_handler));
 
-    let addr = "0.0.0.0:4000";
+    let port = env::var("PORT")
+        .unwrap_or_else(|_| "4000".to_string())
+        .parse::<u16>()
+        .expect("PORT must be a valid number");
+    
+    let addr = format!("0.0.0.0:{}", port);
     info!("Server listening on http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();

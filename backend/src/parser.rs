@@ -1,4 +1,6 @@
-use crate::languages::{js_parser, py_parser, rs_parser, ts_parser};
+use crate::languages::{
+    c_parser, cpp_parser, java_parser, js_parser, py_parser, rs_parser, ts_parser,
+};
 use crate::models::{CityStats, GameEntity, Route, RouteType, WorldMeta, WorldSeed};
 use std::collections::HashMap;
 use std::fs;
@@ -40,6 +42,18 @@ fn parse_single_file(path: &Path, relative_path: &str) -> Option<ParsedFile> {
         "py" => {
             let (entities, imports) = py_parser::parse_python_code(&source_code, &file_id);
             (entities, imports, "py")
+        }
+        "cpp" | "cc" | "cxx" | "hpp" => {
+            let (entities, imports) = cpp_parser::parse_cpp_code(&source_code, &file_id);
+            (entities, imports, "cpp")
+        }
+        "c" | "h" => {
+            let (entities, imports) = c_parser::parse_c_code(&source_code, &file_id);
+            (entities, imports, "c")
+        }
+        "java" => {
+            let (entities, imports) = java_parser::parse_java_code(&source_code, &file_id);
+            (entities, imports, "java")
         }
         _ => return None,
     };

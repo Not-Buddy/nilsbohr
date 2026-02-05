@@ -3,6 +3,10 @@ name = "backend"
 version = "0.1.0"
 edition = "2024"
 
+[[bin]]
+name = "backend"
+path = "src/main.rs"
+
 [dependencies]
 axum = "0.7"
 tokio = { version = "1.0", features = ["full"] }
@@ -17,6 +21,9 @@ tree-sitter-rust = "0.20"
 tree-sitter-javascript = "0.20"
 tree-sitter-typescript = "0.20"
 tree-sitter-python = "0.20"
+tree-sitter-cpp = "0.20"
+tree-sitter-c = "0.20"
+tree-sitter-java = "0.20"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 chrono = "0.4"
