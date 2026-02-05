@@ -2,23 +2,16 @@ use crate::models::{GameEntity, Parameter};
 use tracing::{debug, instrument, trace};
 use tree_sitter::{Node, Parser};
 
-/// Parse TypeScript/JavaScript code and return (entities, imports)
-pub fn parse_ts_js_code(
+/// Parse JavaScript code (.js, .jsx) and return (entities, imports)
+pub fn parse_javascript_code(
     source: &str,
-    is_typescript: bool,
     parent_id: &str,
 ) -> (Vec<GameEntity>, Vec<String>) {
     let mut parser = Parser::new();
 
-    let language = if is_typescript {
-        tree_sitter_typescript::language_typescript()
-    } else {
-        tree_sitter_javascript::language()
-    };
-
     parser
-        .set_language(language)
-        .expect("Error loading JS/TS grammar");
+        .set_language(tree_sitter_javascript::language())
+        .expect("Error loading JavaScript grammar");
 
     let tree = parser.parse(source, None).unwrap();
     let mut imports = Vec::new();
@@ -59,34 +52,19 @@ fn extract_parameters(node: Node, source: &[u8]) -> Vec<Parameter> {
         let mut cursor = param_list.walk();
         for child in param_list.children(&mut cursor) {
             let kind = child.kind();
-            if kind == "required_parameter" || kind == "optional_parameter" || kind == "identifier"
-            {
-                let name = if kind == "identifier" {
-                    get_text(child, source)
-                } else {
-                    child
-                        .child_by_field_name("pattern")
-                        .map(|n| get_text(n, source))
-                        .unwrap_or_default()
-                };
-
-                let datatype = child
-                    .child_by_field_name("type")
-                    .map(|t| get_text(t, source).trim_start_matches(": ").to_string())
-                    .unwrap_or_else(|| "any".to_string());
-
+            // JS parameters are usually identifiers, assignment_patterns (defaults), or rest_patterns
+            if kind == "identifier" || kind == "assignment_pattern" || kind == "rest_pattern" {
+                let name = get_text(child, source);
                 if !name.is_empty() && name != "(" && name != ")" && name != "," {
-                    params.push(Parameter { name, datatype });
+                    params.push(Parameter { 
+                        name, 
+                        datatype: "any".to_string() // JS is dynamically typed
+                    });
                 }
             }
         }
     }
     params
-}
-
-fn extract_return_type(node: Node, source: &[u8]) -> Option<String> {
-    node.child_by_field_name("return_type")
-        .map(|n| get_text(n, source).trim_start_matches(": ").to_string())
 }
 
 fn extract_function_calls(node: Node, source: &[u8]) -> Vec<String> {
@@ -148,6 +126,9 @@ fn is_builtin(name: &str) -> bool {
             | "Promise"
             | "async"
             | "await"
+            | "require" // CommonJS specific
+            | "module"
+            | "exports"
     )
 }
 
@@ -205,23 +186,44 @@ fn parse_node(
                         .trim_matches(|c| c == '"' || c == '\'' || c == '`')
                         .to_string();
                     if import_path.starts_with("./") || import_path.starts_with("../") {
-                        // Convert to potential file path
-                        let ext = if import_path.ends_with(".ts")
-                            || import_path.ends_with(".tsx")
-                            || import_path.ends_with(".js")
-                            || import_path.ends_with(".jsx")
-                        {
+                        // Default to .js if no extension provided
+                        let ext = if import_path.ends_with(".js") || import_path.ends_with(".jsx") {
                             ""
                         } else {
-                            ".ts" // Assume .ts for extension-less imports
+                            ".js"
                         };
                         imports.push(format!("{}{}", import_path, ext));
                     }
                 }
             }
+            // CommonJS require (const x = require('./file'))
+            "lexical_declaration" | "variable_declaration" => {
+                // Check for require calls
+                let mut decl_cursor = child.walk();
+                for decl in child.children(&mut decl_cursor) {
+                     if decl.kind() == "variable_declarator" {
+                        if let Some(value) = decl.child_by_field_name("value") {
+                            if value.kind() == "call_expression" {
+                                let func = value.child_by_field_name("function").map(|n| get_text(n, source)).unwrap_or_default();
+                                if func == "require" {
+                                     if let Some(args) = value.child_by_field_name("arguments") {
+                                         let path = get_text(args, source).trim_matches(|c| c == '(' || c == ')' || c == '"' || c == '\'').to_string();
+                                         if path.starts_with("./") || path.starts_with("../") {
+                                             imports.push(format!("{}.js", path));
+                                         }
+                                     }
+                                }
+                            }
+                        }
+                     }
+                }
+                
+                // Re-process for variables (artifacts)
+                entities.extend(parse_variables(child, source, parent_id, imports));
+            }
 
-            // --- BUILDINGS (Classes, Interfaces) ---
-            "class_declaration" | "abstract_class_declaration" => {
+            // --- BUILDINGS (Classes) ---
+            "class_declaration" => {
                 let name = child
                     .child_by_field_name("name")
                     .map(|n| get_text(n, source))
@@ -244,49 +246,6 @@ fn parse_node(
                 });
             }
 
-            "interface_declaration" => {
-                let name = child
-                    .child_by_field_name("name")
-                    .map(|n| get_text(n, source))
-                    .unwrap_or_else(|| "AnonymousInterface".into());
-
-                let id = format!("{}::{}", parent_id, name);
-                let is_public = is_exported(child, source);
-                let loc = count_lines(child);
-                let children = parse_node(child, source, &id, imports);
-
-                entities.push(GameEntity::Building {
-                    id,
-                    name,
-                    building_type: "interface".to_string(),
-                    is_public,
-                    loc,
-                    imports: vec![],
-                    children,
-                });
-            }
-
-            "type_alias_declaration" => {
-                let name = child
-                    .child_by_field_name("name")
-                    .map(|n| get_text(n, source))
-                    .unwrap_or_else(|| "AnonymousType".into());
-
-                let id = format!("{}::{}", parent_id, name);
-                let is_public = is_exported(child, source);
-                let loc = count_lines(child);
-
-                entities.push(GameEntity::Building {
-                    id,
-                    name,
-                    building_type: "type".to_string(),
-                    is_public,
-                    loc,
-                    imports: vec![],
-                    children: vec![],
-                });
-            }
-
             // --- ROOMS (Functions, Methods) ---
             "function_declaration" | "generator_function_declaration" => {
                 let name = child
@@ -298,7 +257,6 @@ fn parse_node(
                 let loc = count_lines(child);
                 let is_async_fn = is_async(child, source);
                 let parameters = extract_parameters(child, source);
-                let return_type = extract_return_type(child, source);
                 let visibility = if is_exported(child, source) {
                     "public"
                 } else {
@@ -325,7 +283,7 @@ fn parse_node(
                     complexity,
                     loc,
                     parameters,
-                    return_type,
+                    return_type: None, // JS has no return types
                     calls,
                     children,
                 });
@@ -341,7 +299,6 @@ fn parse_node(
                 let loc = count_lines(child);
                 let is_async_fn = is_async(child, source);
                 let parameters = extract_parameters(child, source);
-                let return_type = extract_return_type(child, source);
                 let complexity = calculate_complexity(child);
 
                 let calls = if let Some(body) = child.child_by_field_name("body") {
@@ -362,95 +319,14 @@ fn parse_node(
                     complexity,
                     loc,
                     parameters,
-                    return_type,
+                    return_type: None,
                     calls,
                     children,
                 });
             }
 
-            // --- ARTIFACTS (Variables & Arrow Functions) ---
-            "lexical_declaration" | "variable_declaration" => {
-                let mut decl_cursor = child.walk();
-                for decl in child.children(&mut decl_cursor) {
-                    if decl.kind() == "variable_declarator" {
-                        let name = decl
-                            .child_by_field_name("name")
-                            .map(|n| get_text(n, source))
-                            .unwrap_or_else(|| "var".into());
-
-                        let value_node = decl.child_by_field_name("value");
-                        let id = format!("{}::{}", parent_id, name);
-
-                        // Check if the value is an Arrow Function
-                        if let Some(val) = value_node {
-                            if val.kind() == "arrow_function" {
-                                let loc = count_lines(val);
-                                let is_async_fn = is_async(val, source);
-                                let parameters = extract_parameters(val, source);
-                                let return_type = extract_return_type(val, source);
-                                let complexity = calculate_complexity(val);
-                                let calls = extract_function_calls(val, source);
-                                let children = parse_function_body(val, source, &id, imports);
-
-                                debug!(name = %name, kind = "Room", "Found arrow function");
-                                entities.push(GameEntity::Room {
-                                    id,
-                                    name,
-                                    room_type: "arrow_function".to_string(),
-                                    is_main: false,
-                                    is_async: is_async_fn,
-                                    visibility: if is_exported(child, source) {
-                                        "public"
-                                    } else {
-                                        "private"
-                                    }
-                                    .to_string(),
-                                    complexity,
-                                    loc,
-                                    parameters,
-                                    return_type,
-                                    calls,
-                                    children,
-                                });
-                                continue;
-                            }
-                        }
-
-                        // Otherwise it's a variable/constant
-                        let artifact_type = if get_text(child, source).starts_with("const") {
-                            "constant"
-                        } else {
-                            "variable"
-                        };
-
-                        let datatype = decl
-                            .child_by_field_name("type")
-                            .map(|t| get_text(t, source).trim_start_matches(": ").to_string())
-                            .unwrap_or_else(|| "any".to_string());
-
-                        let value_hint = value_node.map(|v| {
-                            let val = get_text(v, source);
-                            if val.len() > 30 {
-                                format!("{}...", &val[..27])
-                            } else {
-                                val
-                            }
-                        });
-
-                        trace!(name = %name, kind = "Artifact", "Found variable");
-                        entities.push(GameEntity::Artifact {
-                            id,
-                            name,
-                            artifact_type: artifact_type.to_string(),
-                            datatype,
-                            is_mutable: !get_text(child, source).starts_with("const"),
-                            value_hint,
-                        });
-                    }
-                }
-            }
-
-            "public_field_definition" | "field_definition" => {
+            // --- ARTIFACTS (Class Fields) ---
+            "field_definition" => {
                 let name = child
                     .child_by_field_name("property")
                     .or_else(|| child.child_by_field_name("name"))
@@ -458,16 +334,12 @@ fn parse_node(
                     .unwrap_or_else(|| "field".into());
 
                 let id = format!("{}::{}", parent_id, name);
-                let datatype = child
-                    .child_by_field_name("type")
-                    .map(|t| get_text(t, source).trim_start_matches(": ").to_string())
-                    .unwrap_or_else(|| "any".to_string());
 
                 entities.push(GameEntity::Artifact {
                     id,
                     name,
                     artifact_type: "field".to_string(),
-                    datatype,
+                    datatype: "any".to_string(),
                     is_mutable: true,
                     value_hint: None,
                 });
@@ -479,6 +351,85 @@ fn parse_node(
                     entities.extend(parse_node(child, source, parent_id, imports));
                 }
             }
+        }
+    }
+    entities
+}
+
+/// Helper to parse variables specifically (separated from main loop for clarity)
+fn parse_variables(node: Node, source: &[u8], parent_id: &str, imports: &mut Vec<String>) -> Vec<GameEntity> {
+    let mut entities = Vec::new();
+    let mut decl_cursor = node.walk();
+    
+    for decl in node.children(&mut decl_cursor) {
+        if decl.kind() == "variable_declarator" {
+            let name = decl
+                .child_by_field_name("name")
+                .map(|n| get_text(n, source))
+                .unwrap_or_else(|| "var".into());
+
+            let value_node = decl.child_by_field_name("value");
+            let id = format!("{}::{}", parent_id, name);
+
+            // Check if the value is an Arrow Function
+            if let Some(val) = value_node {
+                if val.kind() == "arrow_function" {
+                    let loc = count_lines(val);
+                    let is_async_fn = is_async(val, source);
+                    let parameters = extract_parameters(val, source);
+                    let complexity = calculate_complexity(val);
+                    let calls = extract_function_calls(val, source);
+                    let children = parse_function_body(val, source, &id, imports);
+
+                    debug!(name = %name, kind = "Room", "Found arrow function");
+                    entities.push(GameEntity::Room {
+                        id,
+                        name,
+                        room_type: "arrow_function".to_string(),
+                        is_main: false,
+                        is_async: is_async_fn,
+                        visibility: if is_exported(node, source) {
+                            "public"
+                        } else {
+                            "private"
+                        }
+                        .to_string(),
+                        complexity,
+                        loc,
+                        parameters,
+                        return_type: None,
+                        calls,
+                        children,
+                    });
+                    continue;
+                }
+            }
+
+            // Otherwise it's a variable/constant
+            let artifact_type = if get_text(node, source).starts_with("const") {
+                "constant"
+            } else {
+                "variable"
+            };
+
+            let value_hint = value_node.map(|v| {
+                let val = get_text(v, source);
+                if val.len() > 30 {
+                    format!("{}...", &val[..27])
+                } else {
+                    val
+                }
+            });
+
+            trace!(name = %name, kind = "Artifact", "Found variable");
+            entities.push(GameEntity::Artifact {
+                id,
+                name,
+                artifact_type: artifact_type.to_string(),
+                datatype: "any".to_string(),
+                is_mutable: !get_text(node, source).starts_with("const"),
+                value_hint,
+            });
         }
     }
     entities

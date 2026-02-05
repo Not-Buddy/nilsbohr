@@ -17,7 +17,7 @@ async fn main() {
 
     let app = Router::new().route("/parse", post(routes::parse_repo_handler));
 
-    let addr = "0.0.0.0:3000";
+    let addr = "0.0.0.0:4000";
     info!("Server listening on http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
