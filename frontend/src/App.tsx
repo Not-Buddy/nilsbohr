@@ -1,14 +1,17 @@
-import { useState } from 'react'
-import PixiApp from './PixiApp'
-import './App.css'
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
+import Home from './pages/Home';
+import PixiApp from './PixiApp';
 
 function App() {
-
   return (
-    <>
-      <PixiApp />
-    </>
-  )
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/pixi" element={<PixiApp />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;

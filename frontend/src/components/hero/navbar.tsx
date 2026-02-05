@@ -1,0 +1,44 @@
+export default function Navbar() {
+  return (
+    <>
+      <nav className="nav">
+        <div className="nav-brand">
+          <h2>GitGameFiy</h2>
+        </div>
+      </nav>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        .nav {
+          height: 64px;
+          display: flex;
+          align-items: center;
+          padding: 0 24px;
+          font-family: 'Press Start 2P', monospace;
+          color: #000000;
+          position: relative;
+          overflow: hidden;
+          background: transparent;
+        }
+
+        .nav-brand {
+          background: #FCBD80;
+          border: 2px solid #451B0B;
+          padding: 8px 16px;
+          border-radius: 6px;
+          display: inline-block;
+          box-shadow: inset 0 0 0 2px #B47C57;
+        }
+
+        .nav h2 {
+          font-size: 1.2rem;
+          letter-spacing: 1px;
+          font-family: 'Press Start 2P', monospace;
+          margin: 0;
+          color: #000000;
+          font-weight: 600;
+        }
+      `}</style>
+    </>
+  );
+}
