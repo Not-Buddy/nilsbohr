@@ -1,11 +1,10 @@
 {
   "build": {
     "builder": "dockerfile",
-    "dockerfilePath": "backend/Dockerfile"
+    "dockerfilePath": "Dockerfile"
   },
   "deploy": {
     "numReplicas": 1,
-    "startCommand": "",
     "healthcheckPath": "/health",
     "healthcheckTimeout": 30
   }
