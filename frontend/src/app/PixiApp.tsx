@@ -11,7 +11,7 @@ import SampleData from '../assets/sample.json';
 extend({ Container });
 
 export default function PixiApp() {
-  const stageRef = useRef<Container | null>(null);
+  // const _stageRef = useRef<Container | null>(null);
   const managerRef = useRef<SceneManager | null>(null);
 
   const [seed, setSeed] = useState<WorldSeed | null>(null);

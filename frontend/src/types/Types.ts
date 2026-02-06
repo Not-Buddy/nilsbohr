@@ -1,5 +1,5 @@
 import { Container } from 'pixi.js'
-import type { WorldSeed } from './SeedTypes'
+// import type { WorldSeed } from './SeedTypes'
 
 
 export interface EntityWrapper<TKind extends string, TSpec> {
