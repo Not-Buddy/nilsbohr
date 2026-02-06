@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 
 import Home from './pages/Home';
 import PixiApp from './PixiApp';
+import './App.css';
 
 function App() {
   return (

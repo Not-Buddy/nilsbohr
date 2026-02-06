@@ -1,24 +1,25 @@
 // PixiApp.tsx
-import { extend, Application } from '@pixi/react'
-import { useRef, useEffect, useState } from 'react'
-import { Container } from 'pixi.js'
-import { SceneManager } from '../engine/SceneManager'
-import { WorldScene } from '../scenes/WorldScene'
-import type { WorldSeed } from '../types/SeedTypes'
-import type { RootResponse } from '../types/SeedTypes'
+import { extend, Application } from '@pixi/react';
+import { useRef, useEffect, useState } from 'react';
+import { Container } from 'pixi.js';
+import { SceneManager } from '../engine/SceneManager';
+import { WorldScene } from '../scenes/WorldScene';
+import type { WorldSeed } from '../types/SeedTypes';
+import type { RootResponse } from '../types/SeedTypes';
 
-import SampleData from '../assets/sample.json'
-extend({ Container })
+import SampleData from '../assets/sample.json';
+extend({ Container });
 
 export default function PixiApp() {
-  const stageRef = useRef<Container | null>(null)
-  const managerRef = useRef<SceneManager | null>(null)
+  const stageRef = useRef<Container | null>(null);
+  const managerRef = useRef<SceneManager | null>(null);
 
-  const [seed, setSeed] = useState<WorldSeed | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [seed, setSeed] = useState<WorldSeed | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [root, setRoot] = useState<Container | null>(null);
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
 
     async function fetchSeed() {
       try {
@@ -32,38 +33,40 @@ export default function PixiApp() {
 
         console.log('Seed: ', data);
 
-        if (!cancelled) setSeed(data.seed)
+        if (!cancelled) setSeed(data.seed);
       } catch {
-        if (!cancelled) setError('Failed to load world')
+        if (!cancelled) setError('Failed to load world');
       }
     }
 
     fetchSeed()
-    return () => { cancelled = true }
+    return () => { cancelled = true };
   }, [])
 
-  /* 2️⃣ Create SceneManager once */
   useEffect(() => {
-    if (!stageRef.current || managerRef.current) return
-    managerRef.current = new SceneManager(stageRef.current)
-  }, [])
+    if (!root || managerRef.current) return;
+    console.log("instantiating scene manager");
+    
+    managerRef.current = new SceneManager(root);
+  }, [root]);
 
-  /* 3️⃣ Mount WorldScene once seed arrives */
   useEffect(() => {
-    if (!seed || !managerRef.current) return
+    if (!seed || !managerRef.current) return;
+    console.log("Mounting worldscene");
+    
 
     managerRef.current.switch(
       new WorldScene(seed)
-    )
-  }, [seed])
+    );
+  }, [seed, root]);
 
   return (
     <>
-      <Application resizeTo={window} background="#000000">
-        <pixiContainer ref={stageRef} />
+      <Application resizeTo={window} background="#1bd9c0ff">
+        <pixiContainer ref={setRoot} />
       </Application>
 
-      {!seed && !error && (
+      {!seed && !error && ( 
         <div className="loading-overlay">Loading world…</div>
       )}
 

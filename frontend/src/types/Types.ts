@@ -7,8 +7,9 @@ export interface EntityWrapper<TKind extends string, TSpec> {
   spec: TSpec
 }
 
-
-export interface Scene{
-  mount(root: Container): void
+export interface Scene {
+  container: Container
+  mount(): void | Promise<void>
+  update(dt: number): void
   unmount(): void
-}
+};
