@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import backgroundCard from '../../assets/backgroundcard.svg';
+import backgroundCard from '../../../assets/backgroundcard.svg';
 import { useNavigate } from 'react-router-dom'; 
 
 export default function MainCompo() {
@@ -15,7 +15,7 @@ export default function MainCompo() {
     { name: 'Monkeytype', url: 'https://github.com/monkeytypegame/monkeytype' },
   ];
 
-  const handleExampleClick = (url) => {
+  const handleExampleClick = (url: string) => {
     setRepoUrl(url);
   };
 
@@ -23,7 +23,7 @@ export default function MainCompo() {
     <div className="main-container">
 
         {/*pixi testing*/}
-        <button onClick={() => navigate('/pixi')} className="pixi-btn">
+        <button onClick={() => navigate('/game')} className="pixi-btn">
         Pixi
         </button>
 

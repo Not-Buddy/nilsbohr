@@ -16,7 +16,7 @@ export function PlayerSprite() {
     const [texture, setTexture] = useState(Texture.EMPTY)
 
     const [pos, setPos] = useState<Position>({ x: screen.availWidth/2, y: (screen.availHeight/2)-200});
-    const keys = useRef<Record<string, boolean>>({});
+    const keys = useRef< Record<string, boolean>>({});
 
     // Preload the sprite if it hasn't been loaded yet
     useEffect(() => {

@@ -1,7 +1,7 @@
 import Navbar from '../components/hero/navbar';
 import MainCompo from '../components/hero/mainCompo';
 import Footer from '../components/hero/footer';
-import bg from '../assets/background.png';
+import bg from '../../assets/background.png';
 
 export default function Home() {
   return (
