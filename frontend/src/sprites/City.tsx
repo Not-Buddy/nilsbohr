@@ -10,11 +10,12 @@ export function createCitySprite(city: City): Container {
     40,
     120
   );
+  const size = radius * 2;
 
   const body = new Graphics();
 
   body
-    .circle(0, 0, radius)
+    .rect(-radius, -radius, size, size)
     .fill(getThemeColor(city.spec.theme))
     .stroke({ width: 4, color: 0x000000, alpha: 0.6 })
 
@@ -44,8 +45,8 @@ export function createCitySprite(city: City): Container {
     }),
   });
 
-  label.anchor.set(0.5, 0);
-  label.y = radius + 8;
+  label.anchor.set(0.5);
+  label.position.set(0, 0);
 
   container.addChild(label);
 

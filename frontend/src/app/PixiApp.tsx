@@ -56,7 +56,7 @@ export default function PixiApp() {
     
 
     managerRef.current.switch(
-      new WorldScene(seed)
+      new WorldScene(seed, managerRef.current)
     );
   }, [seed, root]);
 
