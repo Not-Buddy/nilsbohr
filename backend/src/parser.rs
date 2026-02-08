@@ -82,8 +82,17 @@ fn collect_files(dir: &Path, root_dir: &Path, results: &mut Vec<ParsedFile>) {
         for entry in entries.flatten() {
             let path = entry.path();
 
-            // Skip hidden files/folders
-            if path
+            // Check if it's a file with a supported extension before checking if it's hidden
+            let is_supported_file = !path.is_dir() && {
+                if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
+                    matches!(ext, "rs" | "ts" | "tsx" | "js" | "jsx" | "py" | "cpp" | "cc" | "cxx" | "hpp" | "c" | "h" | "java")
+                } else {
+                    false
+                }
+            };
+
+            // Skip hidden files/folders unless they have a supported extension
+            if !is_supported_file && path
                 .file_name()
                 .map(|s| s.to_string_lossy().starts_with('.'))
                 .unwrap_or(false)
