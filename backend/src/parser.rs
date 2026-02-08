@@ -325,8 +325,8 @@ fn reconstruct_hierarchy(files: Vec<ParsedFile>) -> Vec<GameEntity> {
                 let dir_path = parts[..parts.len() - 1].join("/");
                 dir_map.entry(dir_path).or_default().push(file.entity);
             } else {
-                // Root level file
-                dir_map.entry(String::new()).or_default().push(file.entity);
+                // Root level file - put it in a special "root" district
+                dir_map.entry("root".to_string()).or_default().push(file.entity);
             }
         }
     }
@@ -335,9 +335,14 @@ fn reconstruct_hierarchy(files: Vec<ParsedFile>) -> Vec<GameEntity> {
     let mut result = Vec::new();
 
     for (dir_path, buildings) in dir_map {
-        if dir_path.is_empty() {
-            // Root level files go directly
-            result.extend(buildings);
+        if dir_path == "root" {
+            // Create a district for root level files
+            result.push(GameEntity::District {
+                id: "district_root".to_string(),
+                name: "root".to_string(),
+                path: "".to_string(), // empty path indicates root
+                children: buildings,
+            });
         } else {
             // Create district for this directory
             let district_name = dir_path.split('/').last().unwrap_or(&dir_path);
