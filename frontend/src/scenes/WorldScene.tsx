@@ -8,7 +8,7 @@ import { Input } from '../engine/Inputs';
 import type { Scene } from '../types/Types';
 import type { WorldSeed, City } from '../types/SeedTypes';
 
-import bun from '../assets/bun.jpg';
+// import bun from '../assets/bun.jpg';
 import worldBg from '../assets/world.png';
 
 import type { SceneManager } from '../engine/SceneManager';
@@ -71,14 +71,13 @@ export class WorldScene implements Scene {
 
     this.input = new Input();
 
-    const playerTexture: Texture = await Assets.load(bun);
+    // const playerTexture: Texture = await Assets.load(bun);
 
     this.player = new Player(
-      playerTexture,
       window.innerWidth / 2,
       window.innerHeight / 2
     );
-
+    await this.player.load();
     // player is added above the world map
     this.camera.container.addChild(this.player.sprite);
     this.camera.follow(this.player.sprite)

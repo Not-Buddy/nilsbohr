@@ -1,5 +1,5 @@
 // CityScene.ts
-import { Container, Texture, Assets, Rectangle, Sprite, Text } from 'pixi.js'
+import { Container, Assets, Sprite, Text } from 'pixi.js'
 import type { Scene } from '../types/Types'
 import type { City, District, Building } from '../types/SeedTypes'
 import { SceneManager } from '../engine/SceneManager'
@@ -8,7 +8,6 @@ import { Input } from '../engine/Inputs'
 import { Camera } from '../engine/Camera'
 import { createBuildingSprite } from '../sprites/Building'
 
-import bun from '../assets/bun.jpg'
 import cityBg from '../assets/background.png'
 
 export class CityScene implements Scene {
@@ -37,15 +36,13 @@ export class CityScene implements Scene {
     // --- Background
     const bgTexture = await Assets.load(cityBg)
     const background = new Sprite(bgTexture)
-
     background.width = 3000
     background.height = 2000
-
     this.camera.container.addChild(background)
 
     // --- Title (world-space)
     const title = new Text({
-      text: this.city.spec.name+" - Reload to go back",
+      text: this.city.spec.name + " - Reload to go back",
       style: { fill: '#2a2a2aff', fontSize: 36 },
     })
     title.position.set(100, 40)
@@ -93,14 +90,8 @@ export class CityScene implements Scene {
 
     // --- Player
     this.input = new Input()
-    const playerTexture: Texture = await Assets.load(bun)
-
-    this.player = new Player(
-      playerTexture,
-      400,
-      300
-    )
-
+    this.player = new Player(400, 300)
+    await this.player.load()
     this.camera.container.addChild(this.player.sprite)
 
     // --- Camera follow
@@ -118,7 +109,8 @@ export class CityScene implements Scene {
   unmount() {
     this.input?.destroy()
     this.player?.destroy()
-
+    this.input = undefined
+    this.player = undefined
     this.container.destroy({ children: true })
     this.mounted = false
   }
