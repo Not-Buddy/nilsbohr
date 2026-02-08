@@ -15,7 +15,7 @@ export interface Route {
 // ----------- Artifacts -------------
 
 export interface ArtifactSpec {
-  type: 'Artifact'
+  id: 'Artifact'
   name: string
   artifact_type: string
   datatype: string
@@ -33,7 +33,7 @@ export interface Parameter {
 }
 
 export interface RoomSpec {
-  type: 'Room'
+  id: 'Room'
   name: string
   room_type: string
   is_main: boolean
@@ -65,7 +65,7 @@ export type Building = EntityWrapper<'Building', BuildingSpec>
 
 
 export interface DistrictSpec {
-  type: 'District'
+  id: 'District'
   name: string
   path: string
   children: GameEntity[]

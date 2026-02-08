@@ -26,15 +26,7 @@ export class Player {
     this.sprite.x += dx * MOVE_SPEED * dt
     this.sprite.y += dy * MOVE_SPEED * dt
 
-    this.clampToScreen()
-  }
-
-  private clampToScreen() {
-    const halfW = this.sprite.width / 2
-    const halfH = this.sprite.height / 2
-
-    this.sprite.x = Math.max(halfW, Math.min(this.sprite.x, window.innerWidth - halfW))
-    this.sprite.y = Math.max(halfH, Math.min(this.sprite.y, window.innerHeight - halfH))
+    // this.clampToScreen()
   }
 
   destroy() {

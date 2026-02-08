@@ -1,13 +1,18 @@
 // WorldScene.ts
-import { Container, Texture, Assets, Rectangle } from 'pixi.js';
-import type { Scene } from '../types/Types';
-import type { WorldSeed, City } from '../types/SeedTypes';
+import { Container, Texture, Assets, Rectangle, Sprite } from 'pixi.js';
 import { CityScene } from './CityScene';
 import { createCitySprite } from '../sprites/City';
-import { Player } from '../sprites/Player'
-import { Input } from '../engine/Inputs'
-import bun from '../assets/bun.jpg'
+import { Player } from '../sprites/Player';
+import { Input } from '../engine/Inputs';
+
+import type { Scene } from '../types/Types';
+import type { WorldSeed, City } from '../types/SeedTypes';
+
+import bun from '../assets/bun.jpg';
+import worldBg from '../assets/world.png';
+
 import type { SceneManager } from '../engine/SceneManager';
+import { Camera } from '../engine/Camera'
 
 export class WorldScene implements Scene {
   container = new Container();
@@ -17,7 +22,8 @@ export class WorldScene implements Scene {
   private transitioning = false // transitioning to a city that is
   private player?: Player;
   private input?: Input;
-  private manager: SceneManager
+  private manager: SceneManager;
+  private camera = new Camera();
 
   constructor(seed: WorldSeed, manager: SceneManager) {
     this.seed = seed;
@@ -34,6 +40,21 @@ export class WorldScene implements Scene {
   async mount() {
     if (this.mounted) return;
     this.mounted = true;
+    this.container.addChild(this.camera.container)
+    const bgTexture = await Assets.load(worldBg)
+    const background = new Sprite(bgTexture)
+
+    background.anchor.set(0)
+    background.x = 0
+    background.y = 0
+
+    // Optional: scale to world size
+    background.width = 4000
+    background.height = 2000
+
+    // Add FIRST so it stays behind everything
+    this.camera.container.addChild(background)
+
     //Drawing all cities one by one here
     for (let i = 0; i < this.seed.cities.length; i++) {
       const city: City = this.seed.cities[i];
@@ -45,42 +66,47 @@ export class WorldScene implements Scene {
       sprite.x = (i * 500) + 200;
       sprite.y = 150;
 
-      this.container.addChild(sprite);
+      this.camera.container.addChild(sprite);
     }
 
     this.input = new Input();
 
-    const texture: Texture = await Assets.load(bun);
+    const playerTexture: Texture = await Assets.load(bun);
 
     this.player = new Player(
-      texture,
+      playerTexture,
       window.innerWidth / 2,
       window.innerHeight / 2
     );
 
     // player is added above the world map
-    this.container.addChild(this.player.sprite);
+    this.camera.container.addChild(this.player.sprite);
+    this.camera.follow(this.player.sprite)
+    this.camera.snapToTarget()
 
   }
 
   update(dt: number) {
-    // update the scene every fram
+    // update the scene every frame
     // only the player for now
-    if (!this.player || !this.input || this.transitioning) return
-    this.player.update(dt, this.input)
+    if (!this.player || !this.input || this.transitioning) return;
+    this.player.update(dt, this.input);
+    this.camera.update(dt);
 
-      for (const child of this.container.children) {
-        if (child === this.player.sprite) continue
 
-        if (this.intersects(this.player.sprite, child)) {
-          const city = (child as any).__city as City;
-          if(!city) continue;
+    for (const child of this.camera.container.children) {
+      if (child === this.player.sprite) continue
 
-          this.transitioning = true;
-          this.manager.switch(new CityScene(city, this.manager));
-          return;
-        }
+      if (this.intersects(this.player.sprite, child)) {
+        const city = (child as any).__city as City;
+        if(!city) continue;
+
+        this.transitioning = true;
+        this.manager.switch(new CityScene(city, this.manager));
+        return;
       }
+    }
+ 
   }
 
   unmount() {
