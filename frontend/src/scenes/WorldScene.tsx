@@ -1,5 +1,5 @@
 // WorldScene.ts
-import { Container, Texture, Assets, Rectangle, Sprite } from 'pixi.js';
+import { Container, Assets, Rectangle, Sprite } from 'pixi.js';
 import { CityScene } from './CityScene';
 import { createCitySprite } from '../sprites/City';
 import { Player } from '../sprites/Player';
@@ -98,14 +98,14 @@ export class WorldScene implements Scene {
 
       if (this.intersects(this.player.sprite, child)) {
         const city = (child as any).__city as City;
-        if(!city) continue;
+        if (!city) continue;
 
         this.transitioning = true;
         this.manager.switch(new CityScene(city, this.manager));
         return;
       }
     }
- 
+
   }
 
   unmount() {

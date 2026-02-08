@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import backgroundCard from '../../../assets/backgroundcard.svg';
-import { useNavigate } from 'react-router-dom'; 
+import { useNavigate } from 'react-router-dom';
 
 export default function MainCompo() {
   const [repoUrl, setRepoUrl] = useState('');
@@ -22,10 +22,10 @@ export default function MainCompo() {
   return (
     <div className="main-container">
 
-        {/*pixi testing*/}
-        <button onClick={() => navigate('/game')} className="pixi-btn">
+      {/*pixi testing*/}
+      <button onClick={() => navigate('/game')} className="pixi-btn">
         Pixi
-        </button>
+      </button>
 
       {/* Main Content Card */}
       <div className="content-wrapper">
@@ -39,7 +39,7 @@ export default function MainCompo() {
           }}
         >
 
-            
+
           {/* Card Content */}
           <div className="card-content">
             {/* Header Section */}
@@ -49,7 +49,7 @@ export default function MainCompo() {
                 Turn any GitHub repository into an interactive game designed to help you understand complex codebases easily.
               </p>
               <p className="hint-text">
-                 You can also replace <code className="code-hint">hub</code> with <code className="code-hint">gamefiy</code> in any GitHub URL.
+                You can also replace <code className="code-hint">hub</code> with <code className="code-hint">gamefiy</code> in any GitHub URL.
               </p>
             </div>
 
@@ -65,7 +65,7 @@ export default function MainCompo() {
                   onBlur={() => setIsFocused(false)}
                   className="repo-input"
                 />
-                <button className="diagram-btn">Diagram</button>
+                <button className="diagram-btn" onClick={() => navigate('/game', { state: { repoUrl } })}>Diagram</button>
               </div>
             </div>
 

@@ -14,16 +14,16 @@ export class CityScene implements Scene {
   container = new Container()
 
   private city: City
-  private manager: SceneManager
+  // private manager: SceneManager
   private mounted = false
 
   private camera = new Camera()
   private player?: Player
   private input?: Input
 
-  constructor(city: City, manager: SceneManager) {
+  constructor(city: City, _manager: SceneManager) {
     this.city = city
-    this.manager = manager
+    // this.manager = manager
   }
 
   async mount() {

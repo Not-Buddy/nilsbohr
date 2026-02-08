@@ -138,7 +138,7 @@ export class Player {
     this.keysPressed.clear()
 
     // Check all movement keys
-    for (const [key, dir] of Object.entries(keyMap)) {
+    for (const [key, _dir] of Object.entries(keyMap)) {
       if (input.isDown(key)) {
         this.keysPressed.add(key)
         if (key === 'KeyA') dx -= 1

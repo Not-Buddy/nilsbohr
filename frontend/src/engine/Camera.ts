@@ -15,7 +15,7 @@ export class Camera {
     this.target = target
   }
 
-  update(dt: number) {
+  update(_dt: number) {
     if (!this.target) return
 
     const targetX = window.innerWidth / 2 - this.target.x
