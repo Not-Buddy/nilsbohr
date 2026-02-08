@@ -1,8 +1,11 @@
 // engine/CityLayout.ts
-// Simplified city layout system for district and building placement
+// City layout system with Guillotine Packing Algorithm for realistic city blocks
 
+import { Rectangle } from 'pixi.js'
 import type { District, Building } from '../types/SeedTypes'
 import { SeededRandom } from './SeededRandom'
+
+type Direction = 'north' | 'south' | 'east' | 'west'
 
 export interface DistrictNode {
     data: District
@@ -17,18 +20,14 @@ export interface DistrictNode {
 
 export interface BuildingPlacement {
     building: Building
-    x: number
-    y: number
-    width: number
-    height: number
+    bounds: Rectangle
+    facing: Direction
 }
 
-/**
- * Simple layout system using recursive binary space partitioning (BSP)
- * for organic district placement.
- */
 export class CityLayout {
     private rng: SeededRandom
+    private alleyWidth = 100  // Narrow gaps between buildings
+    private minSplitSize = 200  // Minimum size for splitting - prevents sliver artifacts
 
     constructor(rng: SeededRandom) {
         this.rng = rng
@@ -51,12 +50,13 @@ export class CityLayout {
             const split = splits[i % splits.length]
 
             // Add some padding inside the split
-            const padding = 20
+            const margin = 15
+            // Ensure width/height never go negative
             const innerBounds = {
-                x: split.x + padding,
-                y: split.y + padding,
-                width: split.width - padding * 2,
-                height: split.height - padding * 2,
+                x: split.x + margin,
+                y: split.y + margin,
+                width: Math.max(1, split.width - margin * 2),
+                height: Math.max(1, split.height - margin * 2),
             }
 
             nodes.push({
@@ -71,32 +71,57 @@ export class CityLayout {
 
     /**
      * Binary space partitioning - recursively split rectangles.
+     * Now with minimum size checks to prevent sliver artifacts.
      */
     private bspSplit(
         rect: { x: number; y: number; width: number; height: number },
         numSplits: number,
-        depth: number
+        depth: number = 0
     ): { x: number; y: number; width: number; height: number }[] {
         if (numSplits <= 1 || depth > 4) {
             return [rect]
         }
 
-        const horizontal = this.rng.next() > 0.5
-        const splitRatio = this.rng.range(0.4, 0.6)
+        // Check if splitting is actually viable
+        const canSplitVertical = rect.width > this.minSplitSize * 2
+        const canSplitHorizontal = rect.height > this.minSplitSize * 2
+
+        // If we can't split comfortably, return the whole rect
+        // This prevents creating thin "sliver" districts
+        if (!canSplitVertical && !canSplitHorizontal) {
+            return [rect]
+        }
+
+        // Decide direction:
+        // - If one way is impossible, force the other
+        // - If both possible, favor the longer axis
+        let horizontal = false
+        if (!canSplitVertical) {
+            horizontal = true
+        } else if (!canSplitHorizontal) {
+            horizontal = false
+        } else {
+            horizontal = rect.height > rect.width
+                ? this.rng.next() > 0.3
+                : this.rng.next() > 0.7
+        }
+
+        const splitRatio = this.rng.range(0.35, 0.65)
 
         let rect1, rect2
 
         if (horizontal) {
-            const splitY = rect.y + rect.height * splitRatio
-            rect1 = { x: rect.x, y: rect.y, width: rect.width, height: splitY - rect.y }
-            rect2 = { x: rect.x, y: splitY, width: rect.width, height: rect.y + rect.height - splitY }
+            const splitHeight = Math.floor(rect.height * splitRatio)
+            rect1 = { x: rect.x, y: rect.y, width: rect.width, height: splitHeight }
+            rect2 = { x: rect.x, y: rect.y + splitHeight, width: rect.width, height: rect.height - splitHeight }
         } else {
-            const splitX = rect.x + rect.width * splitRatio
-            rect1 = { x: rect.x, y: rect.y, width: splitX - rect.x, height: rect.height }
-            rect2 = { x: splitX, y: rect.y, width: rect.x + rect.width - splitX, height: rect.height }
+            const splitWidth = Math.floor(rect.width * splitRatio)
+            rect1 = { x: rect.x, y: rect.y, width: splitWidth, height: rect.height }
+            rect2 = { x: rect.x + splitWidth, y: rect.y, width: rect.width - splitWidth, height: rect.height }
         }
 
         const half = Math.ceil(numSplits / 2)
+
         return [
             ...this.bspSplit(rect1, half, depth + 1),
             ...this.bspSplit(rect2, numSplits - half, depth + 1),
@@ -104,61 +129,139 @@ export class CityLayout {
     }
 
     /**
-     * Pack buildings into a district using simple grid layout.
+     * Guillotine Packing Algorithm: Places buildings using space subdivision.
+     * Large buildings (by LOC) get prime space, smaller ones fill gaps.
      */
     packBuildings(
         buildings: Building[],
-        districtBounds: { x: number; y: number; width: number; height: number }
+        bounds: { x: number; y: number; width: number; height: number }
     ): BuildingPlacement[] {
+        if (buildings.length === 0) return []
+
         const placements: BuildingPlacement[] = []
 
-        // Simple grid packing
-        const cols = Math.ceil(Math.sqrt(buildings.length))
-        const cellWidth = 80
-        const cellHeight = 80
-        const padding = 10
+        // 1. Sort buildings by LOC (large buildings first for prime placement)
+        const sorted = [...buildings].sort((a, b) => b.spec.loc - a.spec.loc)
 
-        const startX = districtBounds.x + 30
-        const startY = districtBounds.y + 50 // Leave space for label
+        // 2. Initialize free spaces with the entire district
+        // Shrink slightly to create outer margin
+        const margin = 10
+        let freeSpaces: Rectangle[] = [
+            new Rectangle(
+                bounds.x + margin,
+                bounds.y + margin + 40, // Leave space for district label
+                bounds.width - margin * 2,
+                bounds.height - margin * 2 - 40
+            )
+        ]
 
-        buildings.forEach((building, i) => {
-            const col = i % cols
-            const row = Math.floor(i / cols)
+        // 3. Place each building using Best-Fit heuristic
+        for (const building of sorted) {
+            // Calculate desired size based on LOC
+            const size = Math.min(120, Math.max(50, 60 + building.spec.loc * 0.05))
 
-            const x = startX + col * (cellWidth + padding)
-            const y = startY + row * (cellHeight + padding)
+            // Find the best-fitting free space
+            let bestSpaceIndex = -1
+            let bestScore = Number.MAX_VALUE
 
-            // Check bounds
-            if (x + cellWidth <= districtBounds.x + districtBounds.width &&
-                y + cellHeight <= districtBounds.y + districtBounds.height) {
+            for (let i = 0; i < freeSpaces.length; i++) {
+                const space = freeSpaces[i]
+
+                // Does it fit?
+                if (space.width >= size && space.height >= size) {
+                    // Score = How tightly it fits (smaller is better)
+                    const score = Math.min(space.width - size, space.height - size)
+
+                    if (score < bestScore) {
+                        bestScore = score
+                        bestSpaceIndex = i
+                    }
+                }
+            }
+
+            // If we found a valid spot...
+            if (bestSpaceIndex !== -1) {
+                const space = freeSpaces[bestSpaceIndex]
+
+                // 4. Place the building at top-left of the space
+                const placementRect = new Rectangle(space.x, space.y, size, size)
+
                 placements.push({
                     building,
-                    x,
-                    y,
-                    width: cellWidth,
-                    height: cellHeight,
+                    bounds: placementRect,
+                    facing: 'south' // Default facing
                 })
+
+                // 5. Guillotine Cut: Split the remaining L-shape
+                const remainingW = space.width - size
+                const remainingH = space.height - size
+
+                let rightRect: Rectangle
+                let bottomRect: Rectangle
+
+                // Choose split that leaves larger usable rectangle
+                if (remainingW > remainingH) {
+                    // Vertical cut (right side is bigger)
+                    rightRect = new Rectangle(
+                        space.x + size,
+                        space.y,
+                        remainingW,
+                        space.height
+                    )
+                    bottomRect = new Rectangle(
+                        space.x,
+                        space.y + size,
+                        size,
+                        remainingH
+                    )
+                } else {
+                    // Horizontal cut (bottom side is bigger)
+                    rightRect = new Rectangle(
+                        space.x + size,
+                        space.y,
+                        remainingW,
+                        size
+                    )
+                    bottomRect = new Rectangle(
+                        space.x,
+                        space.y + size,
+                        space.width,
+                        remainingH
+                    )
+                }
+
+                // 6. Add alley padding to create gaps
+                if (rightRect.width > 0) {
+                    rightRect.x += this.alleyWidth
+                    rightRect.width -= this.alleyWidth
+                }
+                if (bottomRect.height > 0) {
+                    bottomRect.y += this.alleyWidth
+                    bottomRect.height -= this.alleyWidth
+                }
+
+                // 7. Update free space list
+                freeSpaces.splice(bestSpaceIndex, 1)
+
+                // Only keep fragments big enough to hold future buildings
+                const minSize = 40
+                if (rightRect.width > minSize && rightRect.height > minSize) {
+                    freeSpaces.push(rightRect)
+                }
+                if (bottomRect.width > minSize && bottomRect.height > minSize) {
+                    freeSpaces.push(bottomRect)
+                }
             }
-        })
+        }
 
         return placements
     }
 
-    /**
-     * Get a color for a district based on its properties.
-     */
     private getDistrictColor(_district: District, index: number): number {
         const colors = [
-            0x3b82f6, // blue
-            0x10b981, // green
-            0xf59e0b, // amber
-            0xef4444, // red
-            0x8b5cf6, // purple
-            0xec4899, // pink
-            0x14b8a6, // teal
-            0xf97316, // orange
+            0x3b82f6, 0x10b981, 0xf59e0b, 0xef4444,
+            0x8b5cf6, 0xec4899, 0x14b8a6, 0xf97316,
         ]
-
         return colors[index % colors.length]
     }
 }

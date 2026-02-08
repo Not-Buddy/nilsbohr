@@ -19,7 +19,7 @@ export class CityScene implements Scene {
   private player?: Player
   private input?: Input
 
-  // [Robustness] Define exact world bounds
+  // [Robustness] Default start, but will be overwritten dynamically
   private worldBounds = new Rectangle(0, 0, 2000, 2000)
 
   constructor(city: City, _manager: SceneManager) {
@@ -30,45 +30,74 @@ export class CityScene implements Scene {
     if (this.mounted) return
     this.mounted = true
 
-    // --- 1. Setup Camera
+    // --- 1. Calculate Dynamic World Size ---
+    const districts = this.getDistricts()
+
+    // Estimate needed area: Base size + (Buildings * AverageBuildingSize)
+    // We sum up the total number of buildings across all districts
+    let totalBuildings = 0
+    districts.forEach(d => {
+      totalBuildings += this.getBuildings(d).length
+    })
+
+    // Heuristic: 
+    // - Base city size: 1000x1000
+    // - Each building adds ~150x150 pixels of area (including roads)
+    // - We want a square-ish map, so we take the sqrt of total area
+    const buildingArea = totalBuildings * (150 * 150)
+    const minSide = 1500
+    const calculatedSide = Math.max(minSide, Math.sqrt(buildingArea + (1000 * 1000)))
+
+    // Add 20% padding for margins
+    const worldW = Math.ceil(calculatedSide * 1.2)
+    const worldH = Math.ceil(calculatedSide * 1.2)
+
+    // Update the world bounds
+    this.worldBounds = new Rectangle(0, 0, worldW, worldH)
+
+    console.log(`CityScene: Dynamic size set to ${worldW}x${worldH} for ${totalBuildings} buildings.`)
+
+    // --- 2. Setup Camera ---
     this.container.addChild(this.camera.container)
 
-    // --- 2. Generate Procedural Background (1000x1000 or larger) ---
-    // We use Graphics to draw a grid/ground directly
+    // --- 3. Generate Procedural Background ---
     const ground = new Graphics()
 
     // Draw base asphalt
     ground.rect(0, 0, this.worldBounds.width, this.worldBounds.height).fill(0x1a1a1a)
 
-    // Draw subtle grid lines for "Cyberpunk/Sci-Fi" feel
+    // Draw grid lines (Cyberpunk style)
     ground.setStrokeStyle({ width: 2, color: 0x333333, alpha: 0.5 })
-    for (let i = 0; i <= this.worldBounds.width; i += 100) {
+
+    // Optimization: Draw grid only within bounds
+    const gridSize = 100
+    for (let i = 0; i <= this.worldBounds.width; i += gridSize) {
       ground.moveTo(i, 0).lineTo(i, this.worldBounds.height).stroke()
+    }
+    for (let i = 0; i <= this.worldBounds.height; i += gridSize) {
       ground.moveTo(0, i).lineTo(this.worldBounds.width, i).stroke()
     }
 
-    // Optimisation: Convert Graphics to a Texture for better performance if static
-    // (Optional, keeps draw calls low)
     this.camera.container.addChild(ground)
 
-    // --- 3. Generate City Layout ---
+    // --- 4. Generate City Layout ---
     const rng = new SeededRandom(this.city.spec.name)
     const layoutSystem = new CityLayout(rng)
 
-    // Generate organic districts
-    // Use slightly less than full width to leave margins
+    // Generate districts using the dynamic size (minus padding)
+    const margin = 100
     const districtNodes = layoutSystem.generateMap(
-      this.getDistricts(),
-      this.worldBounds.width - 200,
-      this.worldBounds.height - 200
+      districts,
+      this.worldBounds.width - (margin * 2),
+      this.worldBounds.height - (margin * 2)
     )
 
-    // --- 4. Render Districts & Buildings ---
+    // --- 5. Render Districts & Buildings ---
     const cityContent = new Container()
-    cityContent.position.set(100, 100) // Margin
+    cityContent.position.set(margin, margin) // Offset by margin
     this.camera.container.addChild(cityContent)
 
-    let spawnPoint = { x: 400, y: 300 }
+    let spawnPoint = { x: worldW / 2, y: worldH / 2 } // Fallback spawn center
 
     districtNodes.forEach((node, index) => {
       // District Floor
@@ -81,42 +110,61 @@ export class CityScene implements Scene {
       // District Label
       const label = new Text({
         text: node.data.spec.name,
-        style: { fontFamily: 'Inter', fontSize: 16, fill: 0x888888 }
+        style: {
+          fontFamily: 'Inter',
+          fontSize: 16,
+          fill: 0x888888,
+          wordWrap: true,
+          wordWrapWidth: Math.max(50, node.bounds.width - 40)
+        }
       })
       label.position.set(node.bounds.x + 20, node.bounds.y + 15)
+
+      // Hide label if district is too small to display it properly
+      if (node.bounds.width < 80 || node.bounds.height < 60) {
+        label.visible = false
+      }
 
       districtGfx.addChild(label)
       cityContent.addChild(districtGfx)
 
       // Buildings
       const buildings = this.getBuildings(node.data)
-      // Pass the *relative* bounds to pack buildings inside this district
-      // Note: Layout system returns relative bounds (x,y inside the split rect)
       const placements = layoutSystem.packBuildings(buildings, node.bounds)
 
       placements.forEach(item => {
         const bSprite = createBuildingSprite(item.building)
-        // Add local bounds offset to global container
-        bSprite.position.set(item.x, item.y)
+
+        // Position relative to cityContent
+        // item.bounds is relative to the district node, which is relative to the split...
+        // Wait! The layout system returns bounds relative to the Root Rect passed in.
+        // Since we passed (0,0, w, h) to generateMap, the bounds are correct relative to cityContent.
+
+        bSprite.position.set(
+          item.bounds.x + item.bounds.width / 2,
+          item.bounds.y + item.bounds.height / 2
+        )
+
         cityContent.addChild(bSprite)
       })
 
       // Set spawn point to center of first district
       if (index === 0) {
         spawnPoint = {
-          x: node.bounds.x + node.bounds.width / 2 + 100,
-          y: node.bounds.y + node.bounds.height / 2 + 100
+          x: margin + node.bounds.x + node.bounds.width / 2,
+          y: margin + node.bounds.y + node.bounds.height / 2
         }
       }
     })
 
-    // --- 5. Player Setup ---
+    // --- 6. Player Setup ---
     this.input = new Input()
+    // Spawn player safely
     this.player = new Player(spawnPoint.x, spawnPoint.y)
     await this.player.load()
     this.camera.container.addChild(this.player.sprite)
 
-    // Camera Setup
+    // Camera Bounds Setup
     this.camera.setBounds(this.worldBounds)
     this.camera.follow(this.player.sprite)
     this.camera.snapToTarget()

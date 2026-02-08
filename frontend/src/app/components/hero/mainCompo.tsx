@@ -10,8 +10,8 @@ export default function MainCompo() {
   const exampleRepos = [
     { name: 'CodeVedas_SIH', url: 'https://github.com/Not-Buddy/CodeVedas_SIH.git' },
     { name: 'VulnerabilityReportCompiler', url: 'https://github.com/Not-Buddy/VulnerabilityReportCompiler.git' },
-    { name: 'Flask', url: 'https://github.com/pallets/flask' },
-    { name: 'api-analytics', url: 'https://github.com/mkdocs/mkdocs' },
+    { name: 'Many Files cpp', url: 'https://github.com/Not-Buddy/C-plus-plus-Brainstorming.git' },
+    { name: 'gauss-render', url: 'https://github.com/Not-Buddy/gauss-render.git' },
     { name: 'Monkeytype', url: 'https://github.com/monkeytypegame/monkeytype' },
   ];
 

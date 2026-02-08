@@ -1,5 +1,5 @@
 // WorldScene.ts
-// Updated to use procedural world generation and chunk-based loading
+// Updated to use dynamic world sizing based on project content
 
 import { Container, Rectangle, Graphics } from 'pixi.js'
 import { CityScene } from './CityScene'
@@ -57,7 +57,7 @@ export class WorldScene implements Scene {
     // Add camera container to scene
     this.container.addChild(this.camera.container)
 
-    // Setup world generator
+    // --- 1. Setup World Generator ---
     if (this.projectResponse) {
       this.generator = new WorldGenerator(this.projectResponse.project)
     } else {
@@ -77,63 +77,70 @@ export class WorldScene implements Scene {
       })
     }
 
+    // --- 2. Generate Layout & Calculate Dynamic Bounds ---
     const cities = this.getCities()
     this.generator.generateCityLayout(cities)
-    const worldBounds = this.generator.getWorldBounds()
 
-    // Generate procedural background
+    // Get the "Tight" bounds (just the area covered by cities)
+    const layoutBounds = this.generator.getWorldBounds()
+
+    // Add dynamic padding based on world size
+    // Small world = 2000px padding, Large world = 50% extra space
+    const padding = Math.max(2000, Math.max(layoutBounds.width, layoutBounds.height) * 0.5)
+
+    // Calculate top-left corner from center-based coordinates
+    const layoutX = layoutBounds.centerX - layoutBounds.width / 2
+    const layoutY = layoutBounds.centerY - layoutBounds.height / 2
+
+    const worldX = layoutX - padding
+    const worldY = layoutY - padding
+    const worldW = layoutBounds.width + (padding * 2)
+    const worldH = layoutBounds.height + (padding * 2)
+
+    // --- 3. Generate Procedural Background ---
     const background = new Graphics()
 
-    // Base space/dark background
-    background.rect(
-      worldBounds.centerX - worldBounds.width / 2,
-      worldBounds.centerY - worldBounds.height / 2,
-      worldBounds.width,
-      worldBounds.height
-    ).fill(0x0a0a0a)
+    // Base space/dark background covering the calculated world size
+    background.rect(worldX, worldY, worldW, worldH).fill(0x0a0a0a)
 
     // Add subtle grid for depth
     background.setStrokeStyle({ width: 1, color: 0x1a1a1a, alpha: 0.3 })
     const gridSize = 200
-    const startX = worldBounds.centerX - worldBounds.width / 2
-    const startY = worldBounds.centerY - worldBounds.height / 2
 
-    for (let x = 0; x <= worldBounds.width; x += gridSize) {
-      background.moveTo(startX + x, startY)
-        .lineTo(startX + x, startY + worldBounds.height)
-        .stroke()
+    // Draw vertical lines
+    for (let x = worldX; x <= worldX + worldW; x += gridSize) {
+      background.moveTo(x, worldY).lineTo(x, worldY + worldH).stroke()
     }
-    for (let y = 0; y <= worldBounds.height; y += gridSize) {
-      background.moveTo(startX, startY + y)
-        .lineTo(startX + worldBounds.width, startY + y)
-        .stroke()
+    // Draw horizontal lines
+    for (let y = worldY; y <= worldY + worldH; y += gridSize) {
+      background.moveTo(worldX, y).lineTo(worldX + worldW, y).stroke()
     }
 
     this.camera.container.addChild(background)
 
-    // Setup chunk manager
+    // --- 4. Setup Chunk Manager ---
     this.chunkManager = new ChunkManager(this.camera.container, {
       chunkSize: 1000,
-      loadRadius: 2,
+      loadRadius: 2, // Load 2 chunks out from player
       unloadRadius: 3,
     })
     this.chunkManager.setCities(cities, this.generator)
 
-    // For small worlds, load everything immediately
-    if (cities.length <= 10) {
+    // Optimization: For small worlds, just load everything to prevent pop-in
+    if (cities.length <= 15) {
       this.chunkManager.loadAll()
     }
 
-    // Setup input
+    // --- 5. Player & Camera ---
     this.input = new Input()
 
-    // Setup player at spawn position
     const spawn = this.generator.getSpawnPosition()
     this.player = new Player(spawn.x, spawn.y)
     await this.player.load()
     this.camera.container.addChild(this.player.sprite)
 
-    // Setup camera
+    // Setup camera with the new dynamic bounds
+    this.camera.setBounds(new Rectangle(worldX, worldY, worldW, worldH))
     this.camera.follow(this.player.sprite)
     this.camera.snapToTarget()
   }
