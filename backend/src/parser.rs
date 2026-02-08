@@ -132,10 +132,13 @@ fn collect_files(dir: &Path, root_dir: &Path, results: &mut Vec<ParsedFile>) {
 fn get_city_theme(lang: &str) -> &'static str {
     match lang {
         "rs" => "industrial", // Rust = Industrial/Steampunk
-        "ts" => "neon",       // TypeScript = Cyberpunk/Neon
-        "js" => "retro",      // JavaScript = Retro/Classic
+        "ts" | "tsx" => "neon",       // TypeScript = Cyberpunk/Neon
+        "js" | "jsx" => "retro",      // JavaScript = Retro/Classic
         "py" => "nature",     // Python = Nature/Organic
         "go" => "minimalist", // Go = Clean/Minimalist
+        "cpp" | "cc" | "cxx" | "hpp" => "mechanical", // C++ = Mechanical/Engineering
+        "c" | "h" => "assembly",      // C = Low-level/Assembly
+        "java" => "enterprise",       // Java = Enterprise/Business
         _ => "default",
     }
 }
@@ -144,10 +147,13 @@ fn get_city_theme(lang: &str) -> &'static str {
 fn get_city_name(lang: &str) -> &'static str {
     match lang {
         "rs" => "Rustopolis",
-        "ts" => "Typescriptia",
-        "js" => "Javascriptura",
+        "ts" | "tsx" => "Typescriptia",
+        "js" | "jsx" => "Javascriptura",
         "py" => "Pythonia",
         "go" => "Golangton",
+        "cpp" | "cc" | "cxx" | "hpp" => "Cppolis",
+        "c" | "h" => "Cville",
+        "java" => "Javapolis",
         _ => "Unknown Lands",
     }
 }
