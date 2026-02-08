@@ -36,4 +36,9 @@ export class Camera {
   setZoom(scale: number) {
     this.container.scale.set(scale)
   }
+
+  /** Set world bounds for camera clamping (placeholder for future implementation) */
+  setBounds(_bounds: { x: number; y: number; width: number; height: number }) {
+    // TODO: Implement camera bounds clamping in update() method
+  }
 }

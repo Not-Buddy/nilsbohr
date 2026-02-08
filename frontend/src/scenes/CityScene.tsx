@@ -1,5 +1,5 @@
 // CityScene.ts
-import { Container, Assets, Sprite, Text } from 'pixi.js'
+import { Container, Text, Graphics, Rectangle } from 'pixi.js'
 import type { Scene } from '../types/Types'
 import type { City, District, Building } from '../types/SeedTypes'
 import { SceneManager } from '../engine/SceneManager'
@@ -7,101 +7,123 @@ import { Player } from '../sprites/Player'
 import { Input } from '../engine/Inputs'
 import { Camera } from '../engine/Camera'
 import { createBuildingSprite } from '../sprites/Building'
-
-import cityBg from '../assets/background.png'
+import { SeededRandom } from '../engine/SeededRandom'
+import { CityLayout } from '../engine/CityLayout'
 
 export class CityScene implements Scene {
   container = new Container()
-
   private city: City
-  // private manager: SceneManager
   private mounted = false
 
   private camera = new Camera()
   private player?: Player
   private input?: Input
 
+  // [Robustness] Define exact world bounds
+  private worldBounds = new Rectangle(0, 0, 2000, 2000)
+
   constructor(city: City, _manager: SceneManager) {
     this.city = city
-    // this.manager = manager
   }
 
   async mount() {
     if (this.mounted) return
     this.mounted = true
 
-    // --- Camera root
+    // --- 1. Setup Camera
     this.container.addChild(this.camera.container)
 
-    // --- Background
-    const bgTexture = await Assets.load(cityBg)
-    const background = new Sprite(bgTexture)
-    background.width = 3000
-    background.height = 2000
-    this.camera.container.addChild(background)
+    // --- 2. Generate Procedural Background (1000x1000 or larger) ---
+    // We use Graphics to draw a grid/ground directly
+    const ground = new Graphics()
 
-    // --- Title (world-space)
-    const title = new Text({
-      text: this.city.spec.name + " - Reload to go back",
-      style: { fill: '#2a2a2aff', fontSize: 36 },
-    })
-    title.position.set(100, 40)
-    this.camera.container.addChild(title)
+    // Draw base asphalt
+    ground.rect(0, 0, this.worldBounds.width, this.worldBounds.height).fill(0x1a1a1a)
 
-    // --- City content root
-    const cityContent = new Container()
-    cityContent.position.set(100, 120)
-    this.camera.container.addChild(cityContent)
+    // Draw subtle grid lines for "Cyberpunk/Sci-Fi" feel
+    ground.setStrokeStyle({ width: 2, color: 0x333333, alpha: 0.5 })
+    for (let i = 0; i <= this.worldBounds.width; i += 100) {
+      ground.moveTo(i, 0).lineTo(i, this.worldBounds.height).stroke()
+      ground.moveTo(0, i).lineTo(this.worldBounds.width, i).stroke()
+    }
 
-    // --- Extract districts
-    const districts = this.city.spec.children.filter(
-      (e): e is District => e.kind === 'District'
+    // Optimisation: Convert Graphics to a Texture for better performance if static
+    // (Optional, keeps draw calls low)
+    this.camera.container.addChild(ground)
+
+    // --- 3. Generate City Layout ---
+    const rng = new SeededRandom(this.city.spec.name)
+    const layoutSystem = new CityLayout(rng)
+
+    // Generate organic districts
+    // Use slightly less than full width to leave margins
+    const districtNodes = layoutSystem.generateMap(
+      this.getDistricts(),
+      this.worldBounds.width - 200,
+      this.worldBounds.height - 200
     )
 
-    // --- Layout constants
-    const districtSpacingY = 220
-    const buildingCols = 6
-    const buildingSpacingX = 90
-    const buildingSpacingY = 90
+    // --- 4. Render Districts & Buildings ---
+    const cityContent = new Container()
+    cityContent.position.set(100, 100) // Margin
+    this.camera.container.addChild(cityContent)
 
-    // --- Draw buildings grouped by district
-    districts.forEach((district, districtIndex) => {
-      const districtContainer = new Container()
-      districtContainer.y = districtIndex * districtSpacingY
+    let spawnPoint = { x: 400, y: 300 }
 
-      const buildings = district.spec.children.filter(
-        (e): e is Building => e.kind === 'Building'
-      )
+    districtNodes.forEach((node, index) => {
+      // District Floor
+      const districtGfx = new Graphics()
+      districtGfx
+        .roundRect(node.bounds.x, node.bounds.y, node.bounds.width, node.bounds.height, 15)
+        .fill({ color: node.color, alpha: 0.2 })
+        .stroke({ width: 2, color: 0x444444, alpha: 0.8 })
 
-      buildings.forEach((building, i) => {
-        const sprite = createBuildingSprite(building)
+      // District Label
+      const label = new Text({
+        text: node.data.spec.name,
+        style: { fontFamily: 'Inter', fontSize: 16, fill: 0x888888 }
+      })
+      label.position.set(node.bounds.x + 20, node.bounds.y + 15)
 
-        const col = i % buildingCols
-        const row = Math.floor(i / buildingCols)
+      districtGfx.addChild(label)
+      cityContent.addChild(districtGfx)
 
-        sprite.x = col * buildingSpacingX
-        sprite.y = row * buildingSpacingY
+      // Buildings
+      const buildings = this.getBuildings(node.data)
+      // Pass the *relative* bounds to pack buildings inside this district
+      // Note: Layout system returns relative bounds (x,y inside the split rect)
+      const placements = layoutSystem.packBuildings(buildings, node.bounds)
 
-        districtContainer.addChild(sprite)
+      placements.forEach(item => {
+        const bSprite = createBuildingSprite(item.building)
+        // Add local bounds offset to global container
+        bSprite.position.set(item.x, item.y)
+        cityContent.addChild(bSprite)
       })
 
-      cityContent.addChild(districtContainer)
+      // Set spawn point to center of first district
+      if (index === 0) {
+        spawnPoint = {
+          x: node.bounds.x + node.bounds.width / 2 + 100,
+          y: node.bounds.y + node.bounds.height / 2 + 100
+        }
+      }
     })
 
-    // --- Player
+    // --- 5. Player Setup ---
     this.input = new Input()
-    this.player = new Player(400, 300)
+    this.player = new Player(spawnPoint.x, spawnPoint.y)
     await this.player.load()
     this.camera.container.addChild(this.player.sprite)
 
-    // --- Camera follow
+    // Camera Setup
+    this.camera.setBounds(this.worldBounds)
     this.camera.follow(this.player.sprite)
     this.camera.snapToTarget()
   }
 
   update(dt: number) {
     if (!this.player || !this.input) return
-
     this.player.update(dt, this.input)
     this.camera.update(dt)
   }
@@ -109,9 +131,18 @@ export class CityScene implements Scene {
   unmount() {
     this.input?.destroy()
     this.player?.destroy()
-    this.input = undefined
-    this.player = undefined
     this.container.destroy({ children: true })
     this.mounted = false
+  }
+
+  // --- Helpers ---
+  private getDistricts(): District[] {
+    if (this.city.districts?.length) return this.city.districts
+    return (this.city.spec as any).children?.filter((e: any) => e.kind === 'District') || []
+  }
+
+  private getBuildings(district: District): Building[] {
+    if (district.buildings?.length) return district.buildings
+    return (district.spec as any).children?.filter((e: any) => e.kind === 'Building') || []
   }
 }

@@ -8,8 +8,8 @@ export default function MainCompo() {
   const navigate = useNavigate();
 
   const exampleRepos = [
-    { name: 'FastAPI', url: 'https://github.com/tiangolo/fastapi' },
-    { name: 'Streamlit', url: 'https://github.com/streamlit/streamlit' },
+    { name: 'CodeVedas_SIH', url: 'https://github.com/Not-Buddy/CodeVedas_SIH.git' },
+    { name: 'VulnerabilityReportCompiler', url: 'https://github.com/Not-Buddy/VulnerabilityReportCompiler.git' },
     { name: 'Flask', url: 'https://github.com/pallets/flask' },
     { name: 'api-analytics', url: 'https://github.com/mkdocs/mkdocs' },
     { name: 'Monkeytype', url: 'https://github.com/monkeytypegame/monkeytype' },
