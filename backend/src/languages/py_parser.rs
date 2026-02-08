@@ -469,7 +469,8 @@ fn parse_assignment(node: Node, source: &[u8], parent_id: &str) -> Vec<GameEntit
         let value_hint = node.child_by_field_name("right").map(|v| {
             let val = get_text(v, source);
             if val.len() > 30 {
-                format!("{}...", &val[..27])
+                let truncated = val.chars().take(27).collect::<String>();
+                format!("{}...", truncated)
             } else {
                 val
             }

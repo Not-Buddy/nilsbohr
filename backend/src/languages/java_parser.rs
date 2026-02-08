@@ -398,7 +398,10 @@ fn parse_node(
                             let value_hint = field_child.child_by_field_name("value").map(|v| {
                                 let val = get_text(v, source);
                                 if val.len() > 30 {
-                                    format!("{}...", &val[..27])
+                                    {
+                                        let truncated = val.chars().take(27).collect::<String>();
+                                        format!("{}...", truncated)
+                                    }
                                 } else {
                                     val
                                 }

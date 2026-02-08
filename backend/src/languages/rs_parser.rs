@@ -272,7 +272,10 @@ fn parse_rust_node(
                     let value_hint = value_node.map(|v| {
                         let val = get_text(v, source);
                         if val.len() > 30 {
-                            format!("{}...", &val[..27])
+                            {
+                                let truncated = val.chars().take(27).collect::<String>();
+                                format!("{}...", truncated)
+                            }
                         } else {
                             val
                         }

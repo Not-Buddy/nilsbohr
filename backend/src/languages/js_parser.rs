@@ -415,7 +415,10 @@ fn parse_variables(node: Node, source: &[u8], parent_id: &str, imports: &mut Vec
             let value_hint = value_node.map(|v| {
                 let val = get_text(v, source);
                 if val.len() > 30 {
-                    format!("{}...", &val[..27])
+                    {
+                        let truncated = val.chars().take(27).collect::<String>();
+                        format!("{}...", truncated)
+                    }
                 } else {
                     val
                 }
