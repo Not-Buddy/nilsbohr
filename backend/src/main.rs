@@ -32,6 +32,7 @@ async fn main() {
                         origin.as_bytes().starts_with(b"http://localhost:")
                             || origin.as_bytes().starts_with(b"https://nilsbohr")
                             || origin.as_bytes() == b"http://localhost"
+                            || origin.as_bytes().starts_with(b"https://nilsbohr.vercel.app")
                     }
                 ))
                 .allow_methods(tower_http::cors::Any)
