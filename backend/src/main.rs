@@ -1,5 +1,6 @@
 use axum::{response::IntoResponse, routing::get, Router, routing::post};
 use std::env;
+use tower_http::cors::{CorsLayer, AllowOrigin};
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
@@ -23,7 +24,19 @@ async fn main() {
     let app = Router::new()
         .route("/parse", post(routes::parse_repo_handler))
         .route("/", get(health_check))
-        .route("/health", get(health_check));
+        .route("/health", get(health_check))
+        .layer(
+            CorsLayer::new()
+                .allow_origin(AllowOrigin::predicate(
+                    |origin: &http::HeaderValue, _request_parts: &http::request::Parts| {
+                        origin.as_bytes().starts_with(b"http://localhost:")
+                            || origin.as_bytes().starts_with(b"https://nilsbohr")
+                            || origin.as_bytes() == b"http://localhost"
+                    }
+                ))
+                .allow_methods(tower_http::cors::Any)
+                .allow_headers(tower_http::cors::Any)
+        );
 
     let port = env::var("PORT")
         .unwrap_or_else(|_| "4000".to_string())
