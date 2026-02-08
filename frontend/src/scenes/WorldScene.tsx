@@ -1,7 +1,7 @@
 // WorldScene.ts
 // Updated to use procedural world generation and chunk-based loading
 
-import { Container, Assets, Rectangle, Sprite } from 'pixi.js'
+import { Container, Rectangle, Graphics } from 'pixi.js'
 import { CityScene } from './CityScene'
 import { Player } from '../sprites/Player'
 import { Input } from '../engine/Inputs'
@@ -13,7 +13,6 @@ import type { Scene } from '../types/Types'
 import type { City, ProjectResponse, WorldSeed } from '../types/SeedTypes'
 import type { SceneManager } from '../engine/SceneManager'
 
-import worldBg from '../assets/world.png'
 
 export class WorldScene implements Scene {
   container = new Container()
@@ -82,14 +81,34 @@ export class WorldScene implements Scene {
     this.generator.generateCityLayout(cities)
     const worldBounds = this.generator.getWorldBounds()
 
-    // Load background
-    const bgTexture = await Assets.load(worldBg)
-    const background = new Sprite(bgTexture)
-    background.anchor.set(0)
-    background.x = worldBounds.centerX - worldBounds.width / 2
-    background.y = worldBounds.centerY - worldBounds.height / 2
-    background.width = worldBounds.width
-    background.height = worldBounds.height
+    // Generate procedural background
+    const background = new Graphics()
+
+    // Base space/dark background
+    background.rect(
+      worldBounds.centerX - worldBounds.width / 2,
+      worldBounds.centerY - worldBounds.height / 2,
+      worldBounds.width,
+      worldBounds.height
+    ).fill(0x0a0a0a)
+
+    // Add subtle grid for depth
+    background.setStrokeStyle({ width: 1, color: 0x1a1a1a, alpha: 0.3 })
+    const gridSize = 200
+    const startX = worldBounds.centerX - worldBounds.width / 2
+    const startY = worldBounds.centerY - worldBounds.height / 2
+
+    for (let x = 0; x <= worldBounds.width; x += gridSize) {
+      background.moveTo(startX + x, startY)
+        .lineTo(startX + x, startY + worldBounds.height)
+        .stroke()
+    }
+    for (let y = 0; y <= worldBounds.height; y += gridSize) {
+      background.moveTo(startX, startY + y)
+        .lineTo(startX + worldBounds.width, startY + y)
+        .stroke()
+    }
+
     this.camera.container.addChild(background)
 
     // Setup chunk manager
