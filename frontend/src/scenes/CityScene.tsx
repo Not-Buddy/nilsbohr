@@ -200,14 +200,14 @@ export class CityScene implements Scene {
 
         cityContent.addChild(bSprite)
 
-        // Collect building bounds for collision (enterable from below)
+        // Collect building bounds for collision (NOT enterable - must use J key)
         const boundsWithBuilding = {
           x: item.bounds.x,
           y: item.bounds.y,
           width: item.bounds.width,
           height: item.bounds.height,
-          enterable: true,  // Enterable from below
-          buildingRef: item.building  // Store reference for entry
+          enterable: false,  // Buildings are solid - use J key to enter
+          buildingRef: item.building  // Store reference for entry detection
         }
         this.buildingBounds.push(boundsWithBuilding as CollisionRect)
       })
