@@ -25,6 +25,14 @@ const SPRITE_SCALE = 0.5
 type Direction = 'up' | 'down' | 'left' | 'right'
 type AnimationState = 'idle' | 'walking'
 
+export interface CollisionRect {
+  x: number
+  y: number
+  width: number
+  height: number
+  enterable?: boolean  // True if player can enter from below (e.g., cities)
+}
+
 export class Player {
   sprite!: AnimatedSprite
   private animations: Record<Direction, Texture[]> = {} as any
@@ -36,9 +44,18 @@ export class Player {
   private x: number;
   private y: number;
 
+  // Collision detection
+  private collisionBounds: CollisionRect[] = []
+  private playerRadius = 20  // Collision radius for the player
+
   constructor(x: number, y: number) {
     this.x = x;
     this.y = y;
+  }
+
+  /** Set solid collision bounds that the player cannot walk through */
+  setCollisionBounds(bounds: CollisionRect[]): void {
+    this.collisionBounds = bounds
   }
 
   // ---- LOAD ALL SPRITESHEETS ----
@@ -182,9 +199,58 @@ export class Player {
     this.velocity.x = dx * MOVE_SPEED
     this.velocity.y = dy * MOVE_SPEED
 
-    // Apply movement
-    this.sprite.x += this.velocity.x * dt
-    this.sprite.y += this.velocity.y * dt
+    // Calculate new position
+    const newX = this.sprite.x + this.velocity.x * dt
+    const newY = this.sprite.y + this.velocity.y * dt
+
+    // Check X movement collision
+    if (!this.checkCollision(newX, this.sprite.y)) {
+      this.sprite.x = newX
+    }
+
+    // Check Y movement collision
+    if (!this.checkCollision(this.sprite.x, newY)) {
+      this.sprite.y = newY
+    }
+  }
+
+  /** Check if position would collide with any solid bounds */
+  private checkCollision(x: number, y: number): boolean {
+    const r = this.playerRadius
+
+    for (const rect of this.collisionBounds) {
+      // Player bounding box at new position
+      const playerLeft = x - r
+      const playerRight = x + r
+      const playerTop = y - r
+      const playerBottom = y + r
+
+      // Collision rect bounds
+      const rectLeft = rect.x
+      const rectRight = rect.x + rect.width
+      const rectTop = rect.y
+      const rectBottom = rect.y + rect.height
+
+      // Check AABB intersection
+      const collides =
+        playerRight > rectLeft &&
+        playerLeft < rectRight &&
+        playerBottom > rectTop &&
+        playerTop < rectBottom
+
+      if (collides) {
+        // If enterable (like cities), allow entry from below
+        if (rect.enterable) {
+          // Allow if player is approaching from below (player's top is below rect's bottom)
+          const approachingFromBelow = this.sprite.y > rectBottom - r
+          if (approachingFromBelow) {
+            continue  // Don't block - allow entry
+          }
+        }
+        return true  // Collision detected
+      }
+    }
+    return false
   }
 
   // ---- GETTERS ----

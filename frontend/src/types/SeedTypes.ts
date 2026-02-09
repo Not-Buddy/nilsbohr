@@ -21,12 +21,27 @@ export interface ProjectMeta {
 
 // ----------- Highways (Routes) -------------
 
+export type RouteType =
+  | 'FunctionCall'
+  | 'Import'
+  | 'Inheritance'
+  | 'NetworkRequest'
+  | 'TypeReference'
+
 export interface Highway {
   id: string
   from_id: string
   to_id: string
-  route_type: string
+  route_type: RouteType | string  // Accept both enum and legacy string
   bidirectional: boolean
+  metadata?: Record<string, unknown> | null
+}
+
+// ----------- Parameters -------------
+
+export interface Parameter {
+  name: string
+  datatype: string
 }
 
 // ----------- Artifacts -------------
@@ -141,9 +156,12 @@ export interface EntityWrapper<TKind extends string, TSpec> {
 }
 
 export interface Route {
+  id?: string  // Optional for backwards compatibility
   from_id: string
   to_id: string
-  route_type: string
+  route_type: RouteType | string
+  bidirectional?: boolean
+  metadata?: Record<string, unknown> | null
 }
 
 export interface WorldMeta {
@@ -162,6 +180,13 @@ export interface WorldSeed {
 }
 
 export interface RootResponse {
+  project_name: string
+  generated_at: string
+  seed: WorldSeed
+}
+
+// WorldResponse - matches Rust backend's WorldResponse struct
+export interface WorldResponse {
   project_name: string
   generated_at: string
   seed: WorldSeed

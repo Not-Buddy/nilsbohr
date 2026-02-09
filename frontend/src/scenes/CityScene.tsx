@@ -3,13 +3,15 @@ import { Container, Text, Graphics, Rectangle } from 'pixi.js'
 import type { Scene } from '../types/Types'
 import type { City, District, Building } from '../types/SeedTypes'
 import { SceneManager } from '../engine/SceneManager'
-import { Player } from '../sprites/Player'
+import { Player, type CollisionRect } from '../sprites/Player'
 import { Input } from '../engine/Inputs'
 import { Camera } from '../engine/Camera'
 import { createBuildingSprite } from '../sprites/Building'
 import { SeededRandom } from '../engine/SeededRandom'
 import { CityLayout } from '../engine/CityLayout'
 import { CityGenerator } from '../engine/CityGenerator'
+import { Minimap } from '../engine/Minimap'
+import { BuildingScene } from './BuildingScene'
 
 export class CityScene implements Scene {
   container = new Container()
@@ -22,9 +24,18 @@ export class CityScene implements Scene {
 
   // [Robustness] Default start, but will be overwritten dynamically
   private worldBounds = new Rectangle(0, 0, 10000, 10000)
+  private minimap?: Minimap
+  private districtNodes: { bounds: { x: number; y: number; width: number; height: number }; color: number }[] = []
+  private buildingBounds: CollisionRect[] = []  // For collision detection (with buildingRef)
+  private nearbyBuilding?: Building
+  private enterPrompt?: Container
+  private manager: SceneManager
+  private spawnPosition?: { x: number; y: number }
 
-  constructor(city: City, _manager: SceneManager) {
+  constructor(city: City, manager: SceneManager, spawnPosition?: { x: number; y: number }) {
     this.city = city
+    this.manager = manager
+    this.spawnPosition = spawnPosition
   }
 
   async mount() {
@@ -48,7 +59,7 @@ export class CityScene implements Scene {
     const avgBuildingFootprint = 70 * 70
     const gapPerBuilding = 15 * 15
     const districtOverhead = districts.length * 150 * 150  // margins + labels
-    
+
     // For large repositories, increase the area allocation per building to prevent overcrowding
     const densityFactor = totalBuildings > 100 ? 2.0 : (totalBuildings > 50 ? 1.5 : 1.0) // Increased factors
     const buildingArea = totalBuildings * (avgBuildingFootprint + gapPerBuilding) * densityFactor + districtOverhead
@@ -92,7 +103,7 @@ export class CityScene implements Scene {
     // --- 4. Generate City Layout using CityGenerator for better district sizing ---
     const worldRng = new SeededRandom(this.city.spec.name);
     const cityGenerator = new CityGenerator(this.city, worldRng);
-    
+
     // Generate the city layout with positions
     cityGenerator.generate('organic'); // Use organic layout for more natural distribution
 
@@ -108,99 +119,111 @@ export class CityScene implements Scene {
     // Determine spawn point from city generator
     const spawnPoint = cityGenerator.getSpawnPosition();
     const adjustedSpawn = {
-        x: spawnPoint.x,
-        y: spawnPoint.y
+      x: spawnPoint.x,
+      y: spawnPoint.y
     };
 
     // Render districts
-    const districtNodes = this.getDistricts().map(district => {
-        const pos = districtPositions.get(district.spec.id);
+    this.districtNodes = this.getDistricts().map(district => {
+      const pos = districtPositions.get(district.spec.id);
+      if (!pos) return null;
+
+      return {
+        data: district,
+        bounds: {
+          x: pos.x - pos.width / 2,
+          y: pos.y - pos.height / 2,
+          width: pos.width,
+          height: pos.height
+        },
+        color: this.getDistrictColor(district, this.getDistricts().indexOf(district))
+      };
+    }).filter(Boolean) as any[];
+
+    this.districtNodes.forEach((node: any, index) => {
+      if (!node) return;
+
+      // District Floor
+      const districtGfx = new Graphics()
+      districtGfx
+        .roundRect(node.bounds.x, node.bounds.y, node.bounds.width, node.bounds.height, 15)
+        .fill({ color: node.color, alpha: 0.2 })
+        .stroke({ width: 2, color: 0x444444, alpha: 0.8 })
+
+      // District Label
+      const label = new Text({
+        text: node.data.spec.name,
+        style: {
+          fontFamily: 'Inter',
+          fontSize: 16,
+          fill: 0x888888,
+          wordWrap: true,
+          wordWrapWidth: Math.max(50, node.bounds.width - 40)
+        }
+      })
+      label.position.set(node.bounds.x + 20, node.bounds.y + 15)
+
+      // Hide label if district is too small to display it properly
+      if (node.bounds.width < 80 || node.bounds.height < 60) {
+        label.visible = false
+      }
+
+      districtGfx.addChild(label)
+      cityContent.addChild(districtGfx)
+
+      // Buildings - use the positions from CityGenerator
+      const buildings = this.getBuildings(node.data)
+      const placements = buildings.map(building => {
+        const pos = buildingPositions.get(building.spec.id);
         if (!pos) return null;
-        
+
         return {
-            data: district,
-            bounds: {
-                x: pos.x - pos.width / 2,
-                y: pos.y - pos.height / 2,
-                width: pos.width,
-                height: pos.height
-            },
-            color: this.getDistrictColor(district, this.getDistricts().indexOf(district))
+          building,
+          bounds: {
+            x: pos.x - pos.width / 2,
+            y: pos.y - pos.height / 2,
+            width: pos.width,
+            height: pos.height
+          }
         };
-    }).filter(Boolean);
+      }).filter(Boolean);
 
-    districtNodes.forEach((node: any, index) => {
-        if (!node) return;
-        
-        // District Floor
-        const districtGfx = new Graphics()
-        districtGfx
-            .roundRect(node.bounds.x, node.bounds.y, node.bounds.width, node.bounds.height, 15)
-            .fill({ color: node.color, alpha: 0.2 })
-            .stroke({ width: 2, color: 0x444444, alpha: 0.8 })
+      placements.forEach((item: any) => {
+        if (!item) return;
 
-        // District Label
-        const label = new Text({
-            text: node.data.spec.name,
-            style: {
-                fontFamily: 'Inter',
-                fontSize: 16,
-                fill: 0x888888,
-                wordWrap: true,
-                wordWrapWidth: Math.max(50, node.bounds.width - 40)
-            }
-        })
-        label.position.set(node.bounds.x + 20, node.bounds.y + 15)
+        const bSprite = createBuildingSprite(item.building)
 
-        // Hide label if district is too small to display it properly
-        if (node.bounds.width < 80 || node.bounds.height < 60) {
-            label.visible = false
+        // Position relative to cityContent - use the center position from CityGenerator
+        bSprite.position.set(
+          item.bounds.x + item.bounds.width / 2,
+          item.bounds.y + item.bounds.height / 2
+        )
+
+        cityContent.addChild(bSprite)
+
+        // Collect building bounds for collision (enterable from below)
+        const boundsWithBuilding = {
+          x: item.bounds.x,
+          y: item.bounds.y,
+          width: item.bounds.width,
+          height: item.bounds.height,
+          enterable: true,  // Enterable from below
+          buildingRef: item.building  // Store reference for entry
         }
+        this.buildingBounds.push(boundsWithBuilding as CollisionRect)
+      })
 
-        districtGfx.addChild(label)
-        cityContent.addChild(districtGfx)
-
-        // Buildings - use the positions from CityGenerator
-        const buildings = this.getBuildings(node.data)
-        const placements = buildings.map(building => {
-            const pos = buildingPositions.get(building.spec.id);
-            if (!pos) return null;
-            
-            return {
-                building,
-                bounds: {
-                    x: pos.x - pos.width / 2,
-                    y: pos.y - pos.height / 2,
-                    width: pos.width,
-                    height: pos.height
-                }
-            };
-        }).filter(Boolean);
-
-        placements.forEach((item: any) => {
-            if (!item) return;
-            
-            const bSprite = createBuildingSprite(item.building)
-
-            // Position relative to cityContent - use the center position from CityGenerator
-            bSprite.position.set(
-                item.bounds.x + item.bounds.width / 2,
-                item.bounds.y + item.bounds.height / 2
-            )
-
-            cityContent.addChild(bSprite)
-        })
-
-        // Set spawn point to center of first district if not already set
-        if (index === 0 && !this.player) {
-            // Already handled via cityGenerator above
-        }
+      // Set spawn point to center of first district if not already set
+      if (index === 0 && !this.player) {
+        // Already handled via cityGenerator above
+      }
     })
 
     // --- 6. Player Setup ---
     this.input = new Input()
-    // Spawn player safely using the adjusted spawn point
-    this.player = new Player(adjustedSpawn.x, adjustedSpawn.y)
+    // Use provided spawn position (from exiting building) or default spawn
+    const spawn = this.spawnPosition ?? adjustedSpawn
+    this.player = new Player(spawn.x, spawn.y)
     await this.player.load()
     this.camera.container.addChild(this.player.sprite)
 
@@ -208,17 +231,118 @@ export class CityScene implements Scene {
     this.camera.setBounds(this.worldBounds)
     this.camera.follow(this.player.sprite)
     this.camera.snapToTarget()
+
+    // --- 7. Minimap Setup ---
+    this.minimap = new Minimap({
+      worldBounds: this.worldBounds,
+      size: 180,
+      margin: 20,
+    })
+    this.minimap.setDistricts(this.districtNodes)
+    this.minimap.positionOnScreen(window.innerWidth, window.innerHeight)
+    this.container.addChild(this.minimap.container)
+
+    // Set building collision bounds for player
+    this.player.setCollisionBounds(this.buildingBounds)
+
+    // Handle window resize for minimap positioning
+    window.addEventListener('resize', this.handleResize)
+  }
+
+  private handleResize = (): void => {
+    this.minimap?.positionOnScreen(window.innerWidth, window.innerHeight)
   }
 
   update(dt: number) {
     if (!this.player || !this.input) return
     this.player.update(dt, this.input)
     this.camera.update(dt)
+
+    // Update minimap with player position
+    if (this.minimap && this.player) {
+      this.minimap.updatePlayerPosition(this.player.sprite.x, this.player.sprite.y)
+    }
+
+    // Check for nearby buildings (for entry)
+    this.nearbyBuilding = undefined
+    const playerX = this.player.sprite.x
+    const playerY = this.player.sprite.y
+
+    for (const bounds of this.buildingBounds) {
+      const building = (bounds as any).buildingRef as Building | undefined
+      if (!building) continue
+
+      // Check if player is near bottom of building (entry zone)
+      const nearBottom =
+        playerX > bounds.x &&
+        playerX < bounds.x + bounds.width &&
+        playerY > bounds.y + bounds.height - 10 &&
+        playerY < bounds.y + bounds.height + 50
+
+      if (nearBottom) {
+        this.nearbyBuilding = building
+        break
+      }
+    }
+
+    // Show/hide entry prompt
+    if (this.nearbyBuilding) {
+      this.showEnterPrompt()
+
+      if (this.input.isJustPressed('KeyJ')) {
+        const entryPos = { x: this.player.sprite.x, y: this.player.sprite.y }
+        this.manager.switch(new BuildingScene(this.nearbyBuilding, this.city, this.manager, entryPos))
+        return
+      }
+    } else {
+      this.hideEnterPrompt()
+    }
+
+    this.input.updatePrevious()
+  }
+
+  private showEnterPrompt(): void {
+    if (!this.enterPrompt) {
+      this.enterPrompt = new Container()
+
+      const bg = new Graphics()
+      bg.roundRect(-120, -25, 240, 50, 10)
+      bg.fill({ color: 0x000000, alpha: 0.8 })
+      bg.stroke({ width: 2, color: 0x00ff00 })
+      this.enterPrompt.addChild(bg)
+
+      const text = new Text({
+        text: 'Press J to Enter Building',
+        style: {
+          fontFamily: 'monospace',
+          fontSize: 16,
+          fill: 0x00ff00,
+        }
+      })
+      text.anchor.set(0.5, 0.5)
+      this.enterPrompt.addChild(text)
+
+      this.container.addChild(this.enterPrompt)
+    }
+
+    this.enterPrompt.position.set(
+      window.innerWidth / 2,
+      window.innerHeight - 80
+    )
+    this.enterPrompt.visible = true
+  }
+
+  private hideEnterPrompt(): void {
+    if (this.enterPrompt) {
+      this.enterPrompt.visible = false
+    }
   }
 
   unmount() {
+    window.removeEventListener('resize', this.handleResize)
     this.input?.destroy()
     this.player?.destroy()
+    this.minimap?.destroy()
     this.container.destroy({ children: true })
     this.mounted = false
   }

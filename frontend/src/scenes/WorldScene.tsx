@@ -1,9 +1,9 @@
 // WorldScene.ts
 // Updated to use dynamic world sizing based on project content
 
-import { Container, Rectangle, Graphics } from 'pixi.js'
+import { Container, Rectangle, Graphics, Text } from 'pixi.js'
 import { CityScene } from './CityScene'
-import { Player } from '../sprites/Player'
+import { Player, type CollisionRect } from '../sprites/Player'
 import { Input } from '../engine/Inputs'
 import { Camera } from '../engine/Camera'
 import { WorldGenerator } from '../engine/WorldGenerator'
@@ -27,6 +27,8 @@ export class WorldScene implements Scene {
   // New: Procedural generation systems
   private generator?: WorldGenerator
   private chunkManager?: ChunkManager
+  private enterPrompt?: Container  // UI prompt for city entry
+  private nearbyCity?: City        // City player is near
 
   // Support both old WorldSeed and new ProjectResponse formats
   private projectResponse?: ProjectResponse
@@ -154,19 +156,96 @@ export class WorldScene implements Scene {
     // Update chunk loading based on player position
     this.chunkManager?.update(this.player.sprite.x, this.player.sprite.y)
 
-    // Check for city collisions
+    // Build collision bounds from loaded city sprites
+    const collisionBounds: CollisionRect[] = []
     const loadedSprites = this.chunkManager?.getLoadedCitySprites()
+    if (loadedSprites) {
+      for (const [_cityId, sprite] of loadedSprites) {
+        const bounds = sprite.getBounds()
+        collisionBounds.push({
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+          enterable: true  // Cities can be entered from below
+        })
+      }
+    }
+    this.player.setCollisionBounds(collisionBounds)
+
+    // Check for city proximity (for enter prompt)
+    let foundNearbyCity: City | null = null
+    // Reuse loadedSprites from collision check above
     if (loadedSprites) {
       for (const [_cityId, sprite] of loadedSprites) {
         if (this.intersects(this.player.sprite, sprite)) {
           const city = (sprite as any).__city as City
           if (!city) continue
 
-          this.transitioning = true
-          this.manager.switch(new CityScene(city, this.manager))
-          return
+          foundNearbyCity = city
+          break
         }
       }
+    }
+
+    // Update nearby city state and prompt visibility
+    if (foundNearbyCity) {
+      this.nearbyCity = foundNearbyCity
+      this.showEnterPrompt()
+
+      // Check if J was just pressed to enter
+      if (this.input.isJustPressed('KeyJ')) {
+        this.transitioning = true
+        this.manager.switch(new CityScene(foundNearbyCity, this.manager))
+        return
+      }
+    } else {
+      this.nearbyCity = undefined
+      this.hideEnterPrompt()
+    }
+
+    // Update previous key state for just-pressed detection
+    this.input.updatePrevious()
+  }
+
+  private showEnterPrompt(): void {
+    if (!this.enterPrompt) {
+      this.enterPrompt = new Container()
+
+      // Background
+      const bg = new Graphics()
+      bg.roundRect(-100, -25, 200, 50, 10)
+      bg.fill({ color: 0x000000, alpha: 0.8 })
+      bg.stroke({ width: 2, color: 0x00ff00 })
+      this.enterPrompt.addChild(bg)
+
+      // Text
+      const text = new Text({
+        text: 'Press J to Enter City',
+        style: {
+          fontFamily: 'monospace',
+          fontSize: 16,
+          fill: 0x00ff00,
+        }
+      })
+      text.anchor.set(0.5, 0.5)
+      this.enterPrompt.addChild(text)
+
+      // Position at bottom center of screen (will be in UI layer)
+      this.container.addChild(this.enterPrompt)
+    }
+
+    // Position prompt at bottom center
+    this.enterPrompt.position.set(
+      window.innerWidth / 2,
+      window.innerHeight - 80
+    )
+    this.enterPrompt.visible = true
+  }
+
+  private hideEnterPrompt(): void {
+    if (this.enterPrompt) {
+      this.enterPrompt.visible = false
     }
   }
 
@@ -180,11 +259,13 @@ export class WorldScene implements Scene {
     this.input?.destroy()
     this.player?.destroy()
     this.chunkManager?.destroy()
+    this.enterPrompt?.destroy()
 
     this.input = undefined
     this.player = undefined
     this.chunkManager = undefined
     this.generator = undefined
+    this.enterPrompt = undefined // Nullify the reference after destroying
 
     this.container.destroy({
       children: true,
