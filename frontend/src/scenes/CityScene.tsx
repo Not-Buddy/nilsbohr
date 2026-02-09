@@ -8,7 +8,6 @@ import { Input } from '../engine/Inputs'
 import { Camera } from '../engine/Camera'
 import { createBuildingSprite } from '../sprites/Building'
 import { SeededRandom } from '../engine/SeededRandom'
-import { CityLayout } from '../engine/CityLayout'
 import { CityGenerator } from '../engine/CityGenerator'
 import { Minimap } from '../engine/Minimap'
 import { BuildingScene } from './BuildingScene'
@@ -358,7 +357,7 @@ export class CityScene implements Scene {
     return (district.spec as any).children?.filter((e: any) => e.kind === 'Building') || []
   }
 
-  private getDistrictColor(district: District, index: number): number {
+  private getDistrictColor(_district: District, index: number): number {
     const colors = [
       0x3b82f6, 0x10b981, 0xf59e0b, 0xef4444,
       0x8b5cf6, 0xec4899, 0x14b8a6, 0xf97316,

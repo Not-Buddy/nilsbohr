@@ -28,7 +28,6 @@ export class WorldScene implements Scene {
   private generator?: WorldGenerator
   private chunkManager?: ChunkManager
   private enterPrompt?: Container  // UI prompt for city entry
-  private nearbyCity?: City        // City player is near
 
   // Support both old WorldSeed and new ProjectResponse formats
   private projectResponse?: ProjectResponse
@@ -190,7 +189,6 @@ export class WorldScene implements Scene {
 
     // Update nearby city state and prompt visibility
     if (foundNearbyCity) {
-      this.nearbyCity = foundNearbyCity
       this.showEnterPrompt()
 
       // Check if J was just pressed to enter
@@ -200,7 +198,6 @@ export class WorldScene implements Scene {
         return
       }
     } else {
-      this.nearbyCity = undefined
       this.hideEnterPrompt()
     }
 
