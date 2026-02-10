@@ -1,0 +1,140 @@
+{
+  "frames": [
+    {
+      "filename": "Walls.png",
+      "frame": {
+        "x": 1,
+        "y": 1,
+        "w": 672,
+        "h": 782
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 7,
+        "w": 672,
+        "h": 782
+      },
+      "sourceSize": {
+        "w": 672,
+        "h": 800
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "filename": "Roofs.png",
+      "frame": {
+        "x": 1,
+        "y": 785,
+        "w": 368,
+        "h": 285
+      },
+      "rotated": true,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 6,
+        "w": 368,
+        "h": 285
+      },
+      "sourceSize": {
+        "w": 400,
+        "h": 400
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "filename": "Props.png",
+      "frame": {
+        "x": 1,
+        "y": 1155,
+        "w": 218,
+        "h": 236
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 1,
+        "y": 20,
+        "w": 218,
+        "h": 236
+      },
+      "sourceSize": {
+        "w": 400,
+        "h": 400
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "filename": "Shadows.png",
+      "frame": {
+        "x": 1,
+        "y": 1393,
+        "w": 128,
+        "h": 88
+      },
+      "rotated": true,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 128,
+        "h": 88
+      },
+      "sourceSize": {
+        "w": 400,
+        "h": 400
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "filename": "Floors.png",
+      "frame": {
+        "x": 1,
+        "y": 1523,
+        "w": 48,
+        "h": 48
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 48,
+        "h": 48
+      },
+      "sourceSize": {
+        "w": 400,
+        "h": 400
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    }
+  ],
+  "meta": {
+    "app": "http://free-tex-packer.com",
+    "version": "0.6.7",
+    "image": "texture.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 674,
+      "h": 1572
+    },
+    "scale": 1
+  }
+}

@@ -26,7 +26,7 @@ export interface BuildingPlacement {
 
 export class CityLayout {
     private rng: SeededRandom
-    private alleyWidth = 100  // Narrow gaps between buildings
+    private alleyWidth = 8  // Proper alley spacing between buildings
     private minSplitSize = 200  // Minimum size for splitting - prevents sliver artifacts
 
     constructor(rng: SeededRandom) {
@@ -131,6 +131,8 @@ export class CityLayout {
     /**
      * Guillotine Packing Algorithm: Places buildings using space subdivision.
      * Large buildings (by LOC) get prime space, smaller ones fill gaps.
+     * Enhanced to handle dense districts with many buildings by dynamically adjusting
+     * building sizes and improving space allocation.
      */
     packBuildings(
         buildings: Building[],
@@ -155,10 +157,24 @@ export class CityLayout {
             )
         ]
 
-        // 3. Place each building using Best-Fit heuristic
+        // 3. Calculate dynamic building size based on district capacity
+        const availableWidth = bounds.width - margin * 2
+        const availableHeight = bounds.height - margin * 2 - 40
+        const availableArea = availableWidth * availableHeight
+        
+        // Adjust for density: if there are many buildings, make them smaller
+        const densityFactor = Math.min(1.0, (availableArea / (sorted.length * 1000)))
+        const avgAreaPerBuilding = availableArea / sorted.length
+        // Use 75% of available area per building to leave room for alleys
+        const dynamicSize = Math.sqrt(avgAreaPerBuilding) * 0.75 * densityFactor
+        // Clamp between 20-100px to ensure buildings remain visible even in dense areas
+        const baseSize = Math.min(100, Math.max(20, dynamicSize))
+
+        // 4. Place each building using Best-Fit heuristic
         for (const building of sorted) {
-            // Calculate desired size based on LOC
-            const size = Math.min(120, Math.max(50, 60 + building.spec.loc * 0.05))
+            // Slight size variation based on LOC (±15%)
+            const locFactor = Math.min(1.15, Math.max(0.85, 1 + (building.spec.loc - 100) * 0.001))
+            const size = Math.round(baseSize * locFactor)
 
             // Find the best-fitting free space
             let bestSpaceIndex = -1
@@ -244,12 +260,45 @@ export class CityLayout {
                 freeSpaces.splice(bestSpaceIndex, 1)
 
                 // Only keep fragments big enough to hold future buildings
-                const minSize = 40
+                const minSize = Math.max(20, baseSize * 0.5) // Minimum size scales with building size
                 if (rightRect.width > minSize && rightRect.height > minSize) {
                     freeSpaces.push(rightRect)
                 }
                 if (bottomRect.width > minSize && bottomRect.height > minSize) {
                     freeSpaces.push(bottomRect)
+                }
+            } else {
+                // If no space found, try to place in the largest available space anyway
+                // This fallback prevents buildings from being skipped entirely
+                if (freeSpaces.length > 0) {
+                    // Find the largest available space
+                    let largestSpaceIndex = 0
+                    let largestArea = freeSpaces[0].width * freeSpaces[0].height
+                    
+                    for (let i = 1; i < freeSpaces.length; i++) {
+                        const area = freeSpaces[i].width * freeSpaces[i].height
+                        if (area > largestArea) {
+                            largestArea = area
+                            largestSpaceIndex = i
+                        }
+                    }
+                    
+                    const space = freeSpaces[largestSpaceIndex]
+                    // Scale the building to fit in the available space if needed
+                    const fittingSize = Math.min(size, Math.min(space.width, space.height))
+                    
+                    const placementRect = new Rectangle(
+                        space.x + (space.width - fittingSize) / 2, 
+                        space.y + (space.height - fittingSize) / 2, 
+                        fittingSize, 
+                        fittingSize
+                    )
+
+                    placements.push({
+                        building,
+                        bounds: placementRect,
+                        facing: 'south' // Default facing
+                    })
                 }
             }
         }

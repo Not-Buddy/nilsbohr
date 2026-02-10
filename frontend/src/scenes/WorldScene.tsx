@@ -1,13 +1,14 @@
 // WorldScene.ts
 // Updated to use dynamic world sizing based on project content
 
-import { Container, Rectangle, Graphics } from 'pixi.js'
+import { Container, Rectangle, Graphics, Text } from 'pixi.js'
 import { CityScene } from './CityScene'
-import { Player } from '../sprites/Player'
+import { Player, type CollisionRect } from '../sprites/Player'
 import { Input } from '../engine/Inputs'
 import { Camera } from '../engine/Camera'
 import { WorldGenerator } from '../engine/WorldGenerator'
 import { ChunkManager } from '../engine/ChunkManager'
+import { WorldMiniMap } from '../engine/WorldMiniMap'
 
 import type { Scene } from '../types/Types'
 import type { City, ProjectResponse, WorldSeed } from '../types/SeedTypes'
@@ -27,13 +28,17 @@ export class WorldScene implements Scene {
   // New: Procedural generation systems
   private generator?: WorldGenerator
   private chunkManager?: ChunkManager
+  private enterPrompt?: Container  // UI prompt for city entry
+  private minimap?: WorldMiniMap
+  private spawnPosition?: { x: number; y: number }
 
   // Support both old WorldSeed and new ProjectResponse formats
   private projectResponse?: ProjectResponse
   private legacySeed?: WorldSeed
 
-  constructor(seed: WorldSeed | ProjectResponse, manager: SceneManager) {
+  constructor(seed: WorldSeed | ProjectResponse, manager: SceneManager, spawnPosition?: { x: number; y: number }) {
     this.manager = manager
+    this.spawnPosition = spawnPosition
 
     // Detect seed format
     if ('project' in seed) {
@@ -41,6 +46,11 @@ export class WorldScene implements Scene {
     } else {
       this.legacySeed = seed
     }
+  }
+
+  /** Get the original seed to pass to child scenes */
+  private getSeed(): WorldSeed | ProjectResponse {
+    return (this.projectResponse ?? this.legacySeed)!
   }
 
   private getCities(): City[] {
@@ -134,7 +144,7 @@ export class WorldScene implements Scene {
     // --- 5. Player & Camera ---
     this.input = new Input()
 
-    const spawn = this.generator.getSpawnPosition()
+    const spawn = this.spawnPosition ?? this.generator.getSpawnPosition()
     this.player = new Player(spawn.x, spawn.y)
     await this.player.load()
     this.camera.container.addChild(this.player.sprite)
@@ -143,6 +153,27 @@ export class WorldScene implements Scene {
     this.camera.setBounds(new Rectangle(worldX, worldY, worldW, worldH))
     this.camera.follow(this.player.sprite)
     this.camera.snapToTarget()
+
+    // --- 6. World Minimap ---
+    const worldRect = new Rectangle(worldX, worldY, worldW, worldH)
+    this.minimap = new WorldMiniMap({
+      worldBounds: worldRect,
+      size: 200,
+      margin: 20,
+    })
+
+    // Get city positions from generator and pass to minimap
+    const cityPositions = this.generator.getAllCityPositions()
+    this.minimap.setCities(cities, cityPositions)
+    this.minimap.positionOnScreen(window.innerWidth, window.innerHeight)
+    this.container.addChild(this.minimap.container)
+
+    // Handle window resize for minimap
+    window.addEventListener('resize', this.handleResize)
+  }
+
+  private handleResize = (): void => {
+    this.minimap?.positionOnScreen(window.innerWidth, window.innerHeight)
   }
 
   update(dt: number) {
@@ -154,19 +185,98 @@ export class WorldScene implements Scene {
     // Update chunk loading based on player position
     this.chunkManager?.update(this.player.sprite.x, this.player.sprite.y)
 
-    // Check for city collisions
+    // Update minimap player position
+    this.minimap?.updatePlayerPosition(this.player.sprite.x, this.player.sprite.y)
+
+    // Build collision bounds from loaded city sprites
+    const collisionBounds: CollisionRect[] = []
     const loadedSprites = this.chunkManager?.getLoadedCitySprites()
+    if (loadedSprites) {
+      for (const [_cityId, sprite] of loadedSprites) {
+        const bounds = sprite.getBounds()
+        collisionBounds.push({
+          x: bounds.x,
+          y: bounds.y,
+          width: bounds.width,
+          height: bounds.height,
+          enterable: true  // Cities can be entered from below
+        })
+      }
+    }
+    this.player.setCollisionBounds(collisionBounds)
+
+    // Check for city proximity (for enter prompt)
+    let foundNearbyCity: City | null = null
+    // Reuse loadedSprites from collision check above
     if (loadedSprites) {
       for (const [_cityId, sprite] of loadedSprites) {
         if (this.intersects(this.player.sprite, sprite)) {
           const city = (sprite as any).__city as City
           if (!city) continue
 
-          this.transitioning = true
-          this.manager.switch(new CityScene(city, this.manager))
-          return
+          foundNearbyCity = city
+          break
         }
       }
+    }
+
+    // Update nearby city state and prompt visibility
+    if (foundNearbyCity) {
+      this.showEnterPrompt()
+
+      // Check if J was just pressed to enter
+      if (this.input.isJustPressed('KeyJ')) {
+        this.transitioning = true
+        const worldEntryPos = { x: this.player!.sprite.x, y: this.player!.sprite.y }
+        this.manager.switch(new CityScene(foundNearbyCity, this.manager, undefined, this.getSeed(), worldEntryPos))
+        return
+      }
+    } else {
+      this.hideEnterPrompt()
+    }
+
+    // Update previous key state for just-pressed detection
+    this.input.updatePrevious()
+  }
+
+  private showEnterPrompt(): void {
+    if (!this.enterPrompt) {
+      this.enterPrompt = new Container()
+
+      // Background
+      const bg = new Graphics()
+      bg.roundRect(-100, -25, 200, 50, 10)
+      bg.fill({ color: 0x000000, alpha: 0.8 })
+      bg.stroke({ width: 2, color: 0x00ff00 })
+      this.enterPrompt.addChild(bg)
+
+      // Text
+      const text = new Text({
+        text: 'Press J to Enter City',
+        style: {
+          fontFamily: 'monospace',
+          fontSize: 16,
+          fill: 0x00ff00,
+        }
+      })
+      text.anchor.set(0.5, 0.5)
+      this.enterPrompt.addChild(text)
+
+      // Position at bottom center of screen (will be in UI layer)
+      this.container.addChild(this.enterPrompt)
+    }
+
+    // Position prompt at bottom center
+    this.enterPrompt.position.set(
+      window.innerWidth / 2,
+      window.innerHeight - 80
+    )
+    this.enterPrompt.visible = true
+  }
+
+  private hideEnterPrompt(): void {
+    if (this.enterPrompt) {
+      this.enterPrompt.visible = false
     }
   }
 
@@ -177,14 +287,19 @@ export class WorldScene implements Scene {
   }
 
   unmount() {
+    window.removeEventListener('resize', this.handleResize)
     this.input?.destroy()
     this.player?.destroy()
     this.chunkManager?.destroy()
+    this.enterPrompt?.destroy()
+    this.minimap?.destroy()
 
     this.input = undefined
     this.player = undefined
     this.chunkManager = undefined
     this.generator = undefined
+    this.enterPrompt = undefined
+    this.minimap = undefined
 
     this.container.destroy({
       children: true,

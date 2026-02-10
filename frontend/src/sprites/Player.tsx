@@ -25,6 +25,14 @@ const SPRITE_SCALE = 0.5
 type Direction = 'up' | 'down' | 'left' | 'right'
 type AnimationState = 'idle' | 'walking'
 
+export interface CollisionRect {
+  x: number
+  y: number
+  width: number
+  height: number
+  enterable?: boolean  // True if player can enter from below (e.g., cities)
+}
+
 export class Player {
   sprite!: AnimatedSprite
   private animations: Record<Direction, Texture[]> = {} as any
@@ -36,9 +44,18 @@ export class Player {
   private x: number;
   private y: number;
 
+  // Collision detection
+  private collisionBounds: CollisionRect[] = []
+  private playerRadius = 20  // Collision radius for the player
+
   constructor(x: number, y: number) {
     this.x = x;
     this.y = y;
+  }
+
+  /** Set solid collision bounds that the player cannot walk through */
+  setCollisionBounds(bounds: CollisionRect[]): void {
+    this.collisionBounds = bounds
   }
 
   // ---- LOAD ALL SPRITESHEETS ----
@@ -182,9 +199,88 @@ export class Player {
     this.velocity.x = dx * MOVE_SPEED
     this.velocity.y = dy * MOVE_SPEED
 
-    // Apply movement
-    this.sprite.x += this.velocity.x * dt
-    this.sprite.y += this.velocity.y * dt
+    // Calculate new position
+    const newX = this.sprite.x + this.velocity.x * dt
+    const newY = this.sprite.y + this.velocity.y * dt
+
+    // Check X movement collision
+    if (!this.checkCollision(newX, this.sprite.y)) {
+      this.sprite.x = newX
+    }
+
+    // Check Y movement collision
+    if (!this.checkCollision(this.sprite.x, newY)) {
+      this.sprite.y = newY
+    }
+  }
+
+  /** Check if position would collide with any solid bounds */
+  private checkCollision(x: number, y: number): boolean {
+    const r = this.playerRadius
+
+    for (const rect of this.collisionBounds) {
+      // Player bounding box at new position
+      const playerLeft = x - r
+      const playerRight = x + r
+      const playerTop = y - r
+      const playerBottom = y + r
+
+      // Collision rect bounds
+      const rectLeft = rect.x
+      const rectRight = rect.x + rect.width
+      const rectTop = rect.y
+      const rectBottom = rect.y + rect.height
+
+      // Check AABB intersection at proposed position
+      const collides =
+        playerRight > rectLeft &&
+        playerLeft < rectRight &&
+        playerBottom > rectTop &&
+        playerTop < rectBottom
+
+      if (!collides) continue
+
+      // If enterable (like cities), allow entry from below
+      if (rect.enterable) {
+        const approachingFromBelow = this.sprite.y > rectBottom - r
+        if (approachingFromBelow) {
+          continue  // Don't block - allow entry
+        }
+      }
+
+      // ESCAPE FIX: Check if player is ALREADY overlapping at current position.
+      // If so, only block movement that pushes DEEPER into the rect.
+      // This prevents the player from getting permanently stuck.
+      const curLeft = this.sprite.x - r
+      const curRight = this.sprite.x + r
+      const curTop = this.sprite.y - r
+      const curBottom = this.sprite.y + r
+
+      const alreadyOverlapping =
+        curRight > rectLeft &&
+        curLeft < rectRight &&
+        curBottom > rectTop &&
+        curTop < rectBottom
+
+      if (alreadyOverlapping) {
+        // Calculate overlap depth at current vs proposed position
+        // Allow the move if it reduces overlap (moving away from the rect)
+        const curOverlapX = Math.min(curRight - rectLeft, rectRight - curLeft)
+        const curOverlapY = Math.min(curBottom - rectTop, rectBottom - curTop)
+        const newOverlapX = Math.min(playerRight - rectLeft, rectRight - playerLeft)
+        const newOverlapY = Math.min(playerBottom - rectTop, rectBottom - playerTop)
+
+        const curOverlap = Math.min(curOverlapX, curOverlapY)
+        const newOverlap = Math.min(newOverlapX, newOverlapY)
+
+        if (newOverlap <= curOverlap) {
+          continue  // Moving away or same — allow escape
+        }
+      }
+
+      return true  // Collision detected, block movement
+    }
+    return false
   }
 
   // ---- GETTERS ----

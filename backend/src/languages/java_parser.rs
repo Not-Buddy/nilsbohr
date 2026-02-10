@@ -89,12 +89,12 @@ fn extract_function_calls(node: Node, source: &[u8]) -> Vec<String> {
 }
 
 fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
-    if node.kind() == "method_invocation" {
-        if let Some(name_node) = node.child_by_field_name("name") {
-            let name = get_text(name_node, source);
-            if !name.is_empty() {
-                calls.push(name);
-            }
+    if node.kind() == "method_invocation"
+        && let Some(name_node) = node.child_by_field_name("name")
+    {
+        let name = get_text(name_node, source);
+        if !name.is_empty() {
+            calls.push(name);
         }
     }
 
@@ -229,6 +229,7 @@ fn parse_node(
                     loc,
                     imports: vec![],
                     children,
+                    metadata: None,
                 });
             }
 
@@ -258,6 +259,7 @@ fn parse_node(
                     loc,
                     imports: vec![],
                     children,
+                    metadata: None,
                 });
             }
 
@@ -287,6 +289,7 @@ fn parse_node(
                     loc,
                     imports: vec![],
                     children,
+                    metadata: None,
                 });
             }
 
@@ -332,6 +335,7 @@ fn parse_node(
                     return_type,
                     calls,
                     children,
+                    metadata: None,
                 });
             }
 
@@ -373,6 +377,7 @@ fn parse_node(
                     return_type: None,
                     calls,
                     children,
+                    metadata: None,
                 });
             }
 
@@ -417,6 +422,7 @@ fn parse_node(
                                 datatype: datatype.clone(),
                                 is_mutable: !is_final,
                                 value_hint,
+                                metadata: None,
                             });
                         }
                     }
@@ -439,6 +445,7 @@ fn parse_node(
                         datatype: "enum".to_string(),
                         is_mutable: false,
                         value_hint: None,
+                        metadata: None,
                     });
                 }
             }

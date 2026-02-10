@@ -78,21 +78,21 @@ fn extract_function_calls(node: Node, source: &[u8], _parent_id: &str) -> Vec<St
 }
 
 fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
-    if node.kind() == "call_expression" {
-        if let Some(func_node) = node.child_by_field_name("function") {
-            let func_name = get_text(func_node, source);
-            // Clean up the function name
-            let clean_name = func_name
-                .split("::")
-                .last()
-                .unwrap_or(&func_name)
-                .split('.')
-                .last()
-                .unwrap_or(&func_name)
-                .to_string();
-            if !clean_name.is_empty() {
-                calls.push(clean_name);
-            }
+    if node.kind() == "call_expression"
+        && let Some(func_node) = node.child_by_field_name("function")
+    {
+        let func_name = get_text(func_node, source);
+        // Clean up the function name
+        let clean_name = func_name
+            .split("::")
+            .last()
+            .unwrap_or(&func_name)
+            .split('.')
+            .next_back()
+            .unwrap_or(&func_name)
+            .to_string();
+        if !clean_name.is_empty() {
+            calls.push(clean_name);
         }
     }
 
@@ -170,28 +170,49 @@ fn parse_rust_node(
                     loc,
                     imports: vec![],
                     children,
+                    metadata: None,
                 });
             }
 
             // --- IMPL BLOCKS (treated as Buildings) ---
             "impl_item" => {
-                let type_node = child.child_by_field_name("type");
-                let name = type_node
-                    .map(|n| get_text(n, source))
-                    .unwrap_or_else(|| "impl".into());
+                // Handle both inherent impls (impl Type) and trait impls (impl Trait for Type)
+                let trait_node = child.child_by_field_name("trait");
+                let self_type_node = child.child_by_field_name("type");
 
-                let id = format!("{}::impl_{}", parent_id, name);
+                let name = if let Some(trait_node) = trait_node {
+                    // This is a trait implementation: impl Trait for Type
+                    let trait_name = get_text(trait_node, source);
+                    let self_type_name = self_type_node
+                        .map(|n| get_text(n, source))
+                        .unwrap_or_else(|| "unknown".into());
+                    format!("impl {} for {}", trait_name, self_type_name)
+                } else if let Some(self_type_node) = self_type_node {
+                    // This is an inherent implementation: impl Type
+                    let self_type_name = get_text(self_type_node, source);
+                    format!("impl {}", self_type_name)
+                } else {
+                    // Fallback if we can't determine the type
+                    "impl unknown".to_string()
+                };
+
+                let id = format!(
+                    "{}::{}",
+                    parent_id,
+                    name.replace(' ', "_").replace(['<', '>', ':'], "_")
+                );
                 let children = parse_rust_node(child, source, &id, imports);
                 let loc = count_lines(child);
 
                 entities.push(GameEntity::Building {
                     id,
-                    name: format!("impl {}", name),
+                    name,
                     building_type: "impl".to_string(),
-                    is_public: false,
+                    is_public: false, // Impls are not directly public/private like other items
                     loc,
                     imports: vec![],
                     children,
+                    metadata: None,
                 });
             }
 
@@ -243,6 +264,7 @@ fn parse_rust_node(
                     return_type,
                     calls,
                     children: contents,
+                    metadata: None,
                 });
             }
 
@@ -290,6 +312,7 @@ fn parse_rust_node(
                         datatype,
                         is_mutable,
                         value_hint,
+                        metadata: None,
                     });
                 }
             }
@@ -314,6 +337,7 @@ fn parse_rust_node(
                         datatype,
                         is_mutable: false,
                         value_hint: None,
+                        metadata: None,
                     });
                 }
             }
@@ -351,5 +375,75 @@ fn count_complexity_nodes(node: Node, complexity: &mut u32) {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         count_complexity_nodes(child, complexity);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_impl_blocks() {
+        let source_code = r#"
+        struct Person {
+            name: String,
+            age: u32,
+        }
+
+        // Inherent implementation
+        impl Person {
+            fn new(name: String, age: u32) -> Self {
+                Person { name, age }
+            }
+            
+            fn get_name(&self) -> &str {
+                &self.name
+            }
+        }
+
+        trait Greet {
+            fn greet(&self) -> String;
+        }
+
+        // Trait implementation
+        impl Greet for Person {
+            fn greet(&self) -> String {
+                format!("Hello, my name is {}", self.name)
+            }
+        }
+        "#;
+
+        let (entities, _imports) = parse_rust_code(source_code, "test_file");
+
+        // Look for impl blocks in the parsed entities
+        let impl_blocks: Vec<_> = entities
+            .iter()
+            .filter(|entity| {
+                if let GameEntity::Building { building_type, .. } = entity {
+                    building_type == "impl"
+                } else {
+                    false
+                }
+            })
+            .collect();
+
+        assert_eq!(impl_blocks.len(), 2, "Should find 2 impl blocks");
+
+        // Check that we have both an inherent impl and a trait impl
+        let mut has_inherent_impl = false;
+        let mut has_trait_impl = false;
+
+        for entity in impl_blocks {
+            if let GameEntity::Building { name, .. } = entity {
+                if name.contains("impl Person") && !name.contains("for") {
+                    has_inherent_impl = true;
+                } else if name.contains("impl Greet for Person") {
+                    has_trait_impl = true;
+                }
+            }
+        }
+
+        assert!(has_inherent_impl, "Should have an inherent impl block");
+        assert!(has_trait_impl, "Should have a trait impl block");
     }
 }

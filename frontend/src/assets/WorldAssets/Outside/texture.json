@@ -1,0 +1,65 @@
+{
+  "frames": [
+    {
+      "filename": "Vegetation.png",
+      "frame": {
+        "x": 1,
+        "y": 1,
+        "w": 392,
+        "h": 428
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 2,
+        "y": 0,
+        "w": 392,
+        "h": 428
+      },
+      "sourceSize": {
+        "w": 400,
+        "h": 432
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "filename": "Rocks.png",
+      "frame": {
+        "x": 1,
+        "y": 431,
+        "w": 202,
+        "h": 304
+      },
+      "rotated": false,
+      "trimmed": true,
+      "spriteSourceSize": {
+        "x": 1,
+        "y": 0,
+        "w": 202,
+        "h": 304
+      },
+      "sourceSize": {
+        "w": 208,
+        "h": 304
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    }
+  ],
+  "meta": {
+    "app": "http://free-tex-packer.com",
+    "version": "0.6.7",
+    "image": "texture.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 394,
+      "h": 736
+    },
+    "scale": 1
+  }
+}

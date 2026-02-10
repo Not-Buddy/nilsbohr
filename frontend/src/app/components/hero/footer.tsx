@@ -1,3 +1,5 @@
+import './footer.css'
+
 export default function Footer() {
   return (
     <>
@@ -6,40 +8,6 @@ export default function Footer() {
           <span>Built By Daddy</span>
         </div>
       </footer>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-        
-        .footer {
-          height: 56px;
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          padding: 0 24px;
-          font-family: 'Press Start 2P', monospace;
-          color: #000000;
-          font-weight: 700;
-          position: relative;
-          overflow: hidden;
-          background: transparent;
-        }
-
-        .footer-content {
-          background: #FCBD80;
-          border: 2px solid #451B0B;
-          padding: 8px 16px;
-          border-radius: 6px;
-          display: inline-block;
-          box-shadow: inset 0 0 0 2px #B47C57;
-        }
-
-        .footer-content span {
-          font-size: 0.75rem;
-          letter-spacing: 0.5px;
-          font-family: 'Press Start 2P', monospace;
-          color: #000000;
-          white-space: nowrap;
-        }
-      `}</style>
     </>
   );
 }
