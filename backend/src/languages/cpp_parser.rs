@@ -80,21 +80,22 @@ fn extract_function_calls(node: Node, source: &[u8]) -> Vec<String> {
 
 fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
     if node.kind() == "call_expression"
-        && let Some(func_node) = node.child_by_field_name("function") {
-            let func_name = get_text(func_node, source);
-            // Get the last part of a qualified name (e.g., "std::cout" -> "cout")
-            let clean_name = func_name
-                .split("::")
-                .last()
-                .unwrap_or(&func_name)
-                .split('.')
-                .next_back()
-                .unwrap_or(&func_name)
-                .to_string();
-            if !clean_name.is_empty() {
-                calls.push(clean_name);
-            }
+        && let Some(func_node) = node.child_by_field_name("function")
+    {
+        let func_name = get_text(func_node, source);
+        // Get the last part of a qualified name (e.g., "std::cout" -> "cout")
+        let clean_name = func_name
+            .split("::")
+            .last()
+            .unwrap_or(&func_name)
+            .split('.')
+            .next_back()
+            .unwrap_or(&func_name)
+            .to_string();
+        if !clean_name.is_empty() {
+            calls.push(clean_name);
         }
+    }
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
@@ -271,6 +272,7 @@ fn parse_node(
                     loc,
                     imports: vec![],
                     children,
+                    metadata: None,
                 });
             }
 
@@ -322,6 +324,7 @@ fn parse_node(
                     return_type,
                     calls,
                     children,
+                    metadata: None,
                 });
             }
 
@@ -357,6 +360,7 @@ fn parse_node(
                             return_type,
                             calls: vec![],
                             children: vec![],
+                            metadata: None,
                         });
                     } else if decl_child.kind() == "init_declarator"
                         || decl_child.kind() == "identifier"
@@ -389,6 +393,7 @@ fn parse_node(
                                 datatype,
                                 is_mutable: !is_const,
                                 value_hint: None,
+                                metadata: None,
                             });
                         }
                     }
@@ -415,6 +420,7 @@ fn parse_node(
                             datatype: datatype.clone(),
                             is_mutable: true,
                             value_hint: None,
+                            metadata: None,
                         });
                     }
                 }

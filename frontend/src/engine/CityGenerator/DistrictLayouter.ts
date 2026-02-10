@@ -1,21 +1,21 @@
 // engine/CityGenerator/DistrictLayouter.ts
 // District layout strategies
 
-import type { District } from '../../types/SeedTypes'
+import type { District, Building } from '../../types/SeedTypes'
 import type { SeededRandom } from '../SeededRandom'
 import type { DistrictPosition, CityBounds } from './types'
 
 export interface DistrictLayouterConfig {
     rng: SeededRandom
     cityBounds: CityBounds
-    getBuildings: (district: District) => any[]
+    getBuildings: (district: District) => Building[]
     calculateDistrictSize: (district: District) => { width: number; height: number }
 }
 
 export class DistrictLayouter {
     private rng: SeededRandom
     private cityBounds: CityBounds
-    private getBuildings: (district: District) => any[]
+    private getBuildings: (district: District) => Building[]
     private calculateDistrictSize: (district: District) => { width: number; height: number }
 
     constructor(config: DistrictLayouterConfig) {

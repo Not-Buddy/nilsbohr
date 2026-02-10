@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 // --- API Request/Response ---
 
@@ -107,6 +108,8 @@ pub enum GameEntity {
         loc: u32,
         imports: Vec<String>, // IDs of imported buildings
         children: Vec<GameEntity>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        metadata: Option<HashMap<String, String>>,
     },
 
     // 4. The Logic Centers (Function Level)
@@ -123,6 +126,8 @@ pub enum GameEntity {
         return_type: Option<String>,
         calls: Vec<String>, // IDs of functions this calls
         children: Vec<GameEntity>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        metadata: Option<HashMap<String, String>>,
     },
 
     // 5. The Loot/Items (Variable Level)
@@ -134,6 +139,8 @@ pub enum GameEntity {
         is_mutable: bool,
         #[serde(skip_serializing_if = "Option::is_none")]
         value_hint: Option<String>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        metadata: Option<HashMap<String, String>>,
     },
 }
 

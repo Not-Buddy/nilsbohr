@@ -1,13 +1,15 @@
-use axum::{response::IntoResponse, routing::get, Router, routing::post};
+use axum::{Router, response::IntoResponse, routing::get, routing::post};
 use std::env;
-use tower_http::cors::{CorsLayer, AllowOrigin};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
+mod git_layer;
 mod languages;
 mod models;
 mod parser;
 mod routes;
+mod symbol_table;
 
 async fn health_check() -> impl IntoResponse {
     axum::Json(serde_json::json!({"status": "healthy"}))
@@ -32,11 +34,13 @@ async fn main() {
                         origin.as_bytes().starts_with(b"http://localhost:")
                             || origin.as_bytes().starts_with(b"https://nilsbohr")
                             || origin.as_bytes() == b"http://localhost"
-                            || origin.as_bytes().starts_with(b"https://nilsbohr.vercel.app")
-                    }
+                            || origin
+                                .as_bytes()
+                                .starts_with(b"https://nilsbohr.vercel.app")
+                    },
                 ))
                 .allow_methods(tower_http::cors::Any)
-                .allow_headers(tower_http::cors::Any)
+                .allow_headers(tower_http::cors::Any),
         );
 
     let port = env::var("PORT")

@@ -1,7 +1,10 @@
+use crate::git_layer::GitLayer;
 use crate::languages::{
     c_parser, cpp_parser, java_parser, js_parser, py_parser, rs_parser, ts_parser,
 };
 use crate::models::{CityStats, GameEntity, Route, RouteType, WorldMeta, WorldSeed};
+use crate::symbol_table::SymbolTable;
+use rayon::prelude::*;
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -9,14 +12,13 @@ use tracing::{debug, instrument};
 
 // --- Helper to associate file paths with parsed content ---
 struct ParsedFile {
-    path: PathBuf,
     language: String,
     entity: GameEntity,
     loc: u32,
 }
 
-#[instrument(skip(path))]
-fn parse_single_file(path: &Path, relative_path: &str) -> Option<ParsedFile> {
+#[instrument(skip(path, root_path))]
+fn parse_single_file(path: &Path, relative_path: &str, root_path: &Path) -> Option<ParsedFile> {
     let ext = path.extension()?.to_str()?;
     let source_code = match fs::read_to_string(path) {
         Ok(c) => c,
@@ -66,18 +68,34 @@ fn parse_single_file(path: &Path, relative_path: &str) -> Option<ParsedFile> {
         loc,
         imports,
         children,
+        metadata: None,
     };
 
+    // --- FETCH GIT METADATA ---
+    // Instantiate GitLayer locally to avoid Send/Sync issues with parallel processing
+    let git_layer = GitLayer::new(root_path);
+    let git_metadata = git_layer.get_file_metadata(path);
+
+    // --- ATTACH METADATA TO ENTITIES ---
+    // The top-level entity returned by language parsers is usually a list of entities found in the file.
+    // However, `file_entity` created above acts as a wrapper for the file itself.
+    // If we want to attach metadata to the file entity:
+    let mut file_entity = file_entity;
+    if let Some(metadata) = git_metadata {
+        if let GameEntity::Building { metadata: m, .. } = &mut file_entity {
+            *m = Some(metadata);
+        }
+    }
+
     Some(ParsedFile {
-        path: path.to_path_buf(),
         language: lang_tag.to_string(),
         entity: file_entity,
         loc,
     })
 }
 
-/// Recursively collects all parsed files into a flat list
-fn collect_files(dir: &Path, root_dir: &Path, results: &mut Vec<ParsedFile>) {
+/// Recursively collects all file paths
+fn collect_file_paths(dir: &Path, results: &mut Vec<PathBuf>) {
     if let Ok(entries) = fs::read_dir(dir) {
         for entry in entries.flatten() {
             let path = entry.path();
@@ -85,17 +103,32 @@ fn collect_files(dir: &Path, root_dir: &Path, results: &mut Vec<ParsedFile>) {
             // Check if it's a file with a supported extension before checking if it's hidden
             let is_supported_file = !path.is_dir() && {
                 if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-                    matches!(ext, "rs" | "ts" | "tsx" | "js" | "jsx" | "py" | "cpp" | "cc" | "cxx" | "hpp" | "c" | "h" | "java")
+                    matches!(
+                        ext,
+                        "rs" | "ts"
+                            | "tsx"
+                            | "js"
+                            | "jsx"
+                            | "py"
+                            | "cpp"
+                            | "cc"
+                            | "cxx"
+                            | "hpp"
+                            | "c"
+                            | "h"
+                            | "java"
+                    )
                 } else {
                     false
                 }
             };
 
             // Skip hidden files/folders unless they have a supported extension
-            if !is_supported_file && path
-                .file_name()
-                .map(|s| s.to_string_lossy().starts_with('.'))
-                .unwrap_or(false)
+            if !is_supported_file
+                && path
+                    .file_name()
+                    .map(|s| s.to_string_lossy().starts_with('.'))
+                    .unwrap_or(false)
             {
                 continue;
             }
@@ -108,20 +141,17 @@ fn collect_files(dir: &Path, root_dir: &Path, results: &mut Vec<ParsedFile>) {
                 "build",
                 "__pycache__",
                 ".git",
+                "vendor",
             ];
             if path.is_dir() {
                 if let Some(name) = path.file_name()
-                    && skip_dirs.contains(&name.to_string_lossy().as_ref()) {
-                        continue;
-                    }
-                collect_files(&path, root_dir, results);
-            } else {
-                let relative_path = path.strip_prefix(root_dir).unwrap_or(&path);
-                let relative_str = relative_path.to_string_lossy().to_string();
-
-                if let Some(parsed) = parse_single_file(&path, &relative_str) {
-                    results.push(parsed);
+                    && skip_dirs.contains(&name.to_string_lossy().as_ref())
+                {
+                    continue;
                 }
+                collect_file_paths(&path, results);
+            } else if is_supported_file {
+                results.push(path);
             }
         }
     }
@@ -130,14 +160,14 @@ fn collect_files(dir: &Path, root_dir: &Path, results: &mut Vec<ParsedFile>) {
 /// Get city theme based on language
 fn get_city_theme(lang: &str) -> &'static str {
     match lang {
-        "rs" => "industrial", // Rust = Industrial/Steampunk
-        "ts" | "tsx" => "neon",       // TypeScript = Cyberpunk/Neon
-        "js" | "jsx" => "retro",      // JavaScript = Retro/Classic
-        "py" => "nature",     // Python = Nature/Organic
-        "go" => "minimalist", // Go = Clean/Minimalist
+        "rs" => "industrial",                         // Rust = Industrial/Steampunk
+        "ts" | "tsx" => "neon",                       // TypeScript = Cyberpunk/Neon
+        "js" | "jsx" => "retro",                      // JavaScript = Retro/Classic
+        "py" => "nature",                             // Python = Nature/Organic
+        "go" => "minimalist",                         // Go = Clean/Minimalist
         "cpp" | "cc" | "cxx" | "hpp" => "mechanical", // C++ = Mechanical/Engineering
-        "c" | "h" => "assembly",      // C = Low-level/Assembly
-        "java" => "enterprise",       // Java = Enterprise/Business
+        "c" | "h" => "assembly",                      // C = Low-level/Assembly
+        "java" => "enterprise",                       // Java = Enterprise/Business
         _ => "default",
     }
 }
@@ -160,8 +190,18 @@ fn get_city_name(lang: &str) -> &'static str {
 /// The Main Function: Transforms a folder into a WorldSeed
 #[instrument(skip(root_path))]
 pub fn generate_world(root_path: &Path) -> WorldSeed {
-    let mut all_files = Vec::new();
-    collect_files(root_path, root_path, &mut all_files);
+    let mut file_paths = Vec::new();
+    collect_file_paths(root_path, &mut file_paths);
+
+    // Parallel Parse
+    let all_files: Vec<ParsedFile> = file_paths
+        .par_iter()
+        .filter_map(|path| {
+            let relative_path = path.strip_prefix(root_path).unwrap_or(path);
+            let relative_str = relative_path.to_string_lossy().to_string();
+            parse_single_file(path, &relative_str, root_path)
+        })
+        .collect();
 
     // Group files by language
     let mut city_map: HashMap<String, Vec<ParsedFile>> = HashMap::new();
@@ -244,6 +284,26 @@ pub fn generate_world(root_path: &Path) -> WorldSeed {
         cities.push(city);
     }
 
+    // --- RESOLUTION PHASE ---
+    debug!("Indexing symbols for resolution...");
+    let mut symbol_table = SymbolTable::new();
+    symbol_table.index_cities(&cities);
+
+    debug!("Resolving routes...");
+    let mut resolved_routes = Vec::new();
+
+    for route in all_routes {
+        // The 'to_id' is currently just a raw symbol name (e.g. "my_func")
+        // We need to resolve it to a real ID (e.g. "src/start.rs::my_func")
+        // Pass context_file_id (from_id often starts with file path)
+        if let Some(resolved_to) = symbol_table.resolve(&route.to_id, &route.from_id) {
+            resolved_routes.push(Route {
+                to_id: resolved_to,
+                ..route
+            });
+        }
+    }
+
     // Calculate world metadata
     let (total_buildings, total_rooms, total_artifacts, _) =
         cities.iter().fold((0, 0, 0, 0), |acc, city| {
@@ -258,7 +318,8 @@ pub fn generate_world(root_path: &Path) -> WorldSeed {
         .unwrap_or_default();
 
     // Calculate complexity score (simple heuristic)
-    let complexity_score = calculate_complexity_score(total_buildings, total_rooms, &all_routes);
+    let complexity_score =
+        calculate_complexity_score(total_buildings, total_rooms, &resolved_routes);
 
     WorldSeed {
         world_meta: WorldMeta {
@@ -270,7 +331,7 @@ pub fn generate_world(root_path: &Path) -> WorldSeed {
             complexity_score,
         },
         cities,
-        highways: all_routes,
+        highways: resolved_routes,
     }
 }
 
@@ -294,10 +355,6 @@ fn find_entry_point(children: &[GameEntity], _lang: &str) -> Option<String> {
 
 /// Calculate a complexity score for the project (1-10)
 fn calculate_complexity_score(buildings: u32, rooms: u32, routes: &[Route]) -> f32 {
-    // Simple heuristic:
-    // - More buildings = more complex
-    // - More rooms = more complex
-    // - More interconnections = more complex
     let building_score = (buildings as f32 / 10.0).min(3.0);
     let room_score = (rooms as f32 / 50.0).min(4.0);
     let route_score = (routes.len() as f32 / 100.0).min(3.0);
@@ -305,52 +362,78 @@ fn calculate_complexity_score(buildings: u32, rooms: u32, routes: &[Route]) -> f
     (building_score + room_score + route_score).clamp(1.0, 10.0)
 }
 
-/// Helper: Turns a list of paths + files into a nested District/Building tree
+struct DirNode {
+    name: String,
+    path: String,
+    files: Vec<GameEntity>,
+    subdirs: HashMap<String, DirNode>,
+}
+
+impl DirNode {
+    fn new(name: String, path: String) -> Self {
+        Self {
+            name,
+            path,
+            files: Vec::new(),
+            subdirs: HashMap::new(),
+        }
+    }
+
+    fn to_entity(self) -> GameEntity {
+        let mut children = Vec::new();
+        children.extend(self.files);
+        for (_, subdir) in self.subdirs {
+            children.push(subdir.to_entity());
+        }
+
+        GameEntity::District {
+            id: format!("district_{}", self.path.replace('/', "_")),
+            name: self.name,
+            path: self.path,
+            children,
+        }
+    }
+}
+
+/// Helper: Turns a list of paths + files into a TRUE nested District/Building tree
 fn reconstruct_hierarchy(files: Vec<ParsedFile>) -> Vec<GameEntity> {
-    // Group files by their parent directory
-    let mut dir_map: HashMap<String, Vec<GameEntity>> = HashMap::new();
+    let mut root = DirNode::new("root".to_string(), "".to_string());
 
     for file in files {
-        // Get the parent directory path
-        let path_str = file.path.to_string_lossy();
-        let _relative_path = path_str.as_ref();
-
-        // Extract parent directory from the file's ID
         if let GameEntity::Building { id, .. } = &file.entity {
             let parts: Vec<&str> = id.split('/').collect();
+
+            // Navigate the directory tree
+            let mut current_node = &mut root;
+
+            // Build path incrementally
+            let mut current_path = String::new();
+
+            // Handle parent directories (all parts except the last one, which is the file)
             if parts.len() > 1 {
-                let dir_path = parts[..parts.len() - 1].join("/");
-                dir_map.entry(dir_path).or_default().push(file.entity);
-            } else {
-                // Root level file - put it in a special "root" district
-                dir_map.entry("root".to_string()).or_default().push(file.entity);
+                for &part in &parts[..parts.len() - 1] {
+                    if !current_path.is_empty() {
+                        current_path.push('/');
+                    }
+                    current_path.push_str(part);
+
+                    current_node = current_node
+                        .subdirs
+                        .entry(part.to_string())
+                        .or_insert_with(|| DirNode::new(part.to_string(), current_path.clone()));
+                }
             }
+
+            // Add file to the leaf node
+            current_node.files.push(file.entity);
         }
     }
 
-    // Build district hierarchy
+    // Convert root children (we don't want a "root" district wrapping everything if possible)
     let mut result = Vec::new();
-
-    for (dir_path, buildings) in dir_map {
-        if dir_path == "root" {
-            // Create a district for root level files
-            result.push(GameEntity::District {
-                id: "district_root".to_string(),
-                name: "root".to_string(),
-                path: "".to_string(), // empty path indicates root
-                children: buildings,
-            });
-        } else {
-            // Create district for this directory
-            let district_name = dir_path.split('/').next_back().unwrap_or(&dir_path);
-            result.push(GameEntity::District {
-                id: format!("district_{}", dir_path.replace('/', "_")),
-                name: district_name.to_string(),
-                path: dir_path,
-                children: buildings,
-            });
-        }
+    result.extend(root.files);
+    for (_, subdir) in root.subdirs {
+        result.push(subdir.to_entity());
     }
-
     result
 }

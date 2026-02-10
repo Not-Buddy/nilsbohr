@@ -3,7 +3,7 @@
 
 import { Container, Graphics, Text, Rectangle } from 'pixi.js'
 import type { Scene } from '../types/Types'
-import type { Building, Room, City, Artifact } from '../types/SeedTypes'
+import type { Building, Room, City, Artifact, WorldSeed, ProjectResponse } from '../types/SeedTypes'
 import { SceneManager } from '../engine/SceneManager'
 import { CityScene } from './CityScene'
 import { RoomScene } from './RoomScene'
@@ -30,12 +30,26 @@ export class BuildingScene implements Scene {
     private nearbyRoom?: Room
     private enterPrompt?: Container
 
-    constructor(building: Building, city: City, manager: SceneManager, entryPosition: { x: number; y: number }, buildingSpawnPosition?: { x: number; y: number }) {
+    // World navigation context
+    private worldSeed?: WorldSeed | ProjectResponse
+    private worldEntryPosition?: { x: number; y: number }
+
+    constructor(
+        building: Building,
+        city: City,
+        manager: SceneManager,
+        entryPosition: { x: number; y: number },
+        buildingSpawnPosition?: { x: number; y: number },
+        worldSeed?: WorldSeed | ProjectResponse,
+        worldEntryPosition?: { x: number; y: number }
+    ) {
         this.building = building
         this.city = city
         this.manager = manager
         this.entryPosition = entryPosition
         this.buildingSpawnPosition = buildingSpawnPosition
+        this.worldSeed = worldSeed
+        this.worldEntryPosition = worldEntryPosition
     }
 
     async mount() {
@@ -205,7 +219,13 @@ export class BuildingScene implements Scene {
 
         // Check for ESC to exit
         if (this.input.isJustPressed('Escape')) {
-            this.manager.switch(new CityScene(this.city, this.manager, this.entryPosition))
+            this.manager.switch(new CityScene(
+                this.city,
+                this.manager,
+                this.entryPosition,
+                this.worldSeed,
+                this.worldEntryPosition
+            ))
             return
         }
 
@@ -238,7 +258,16 @@ export class BuildingScene implements Scene {
             if (this.input.isJustPressed('KeyJ')) {
                 const buildingPos = { x: this.player.sprite.x, y: this.player.sprite.y }
                 this.manager.switch(
-                    new RoomScene(this.nearbyRoom, this.building, this.city, this.manager, buildingPos, this.entryPosition)
+                    new RoomScene(
+                        this.nearbyRoom,
+                        this.building,
+                        this.city,
+                        this.manager,
+                        buildingPos,
+                        this.entryPosition,
+                        this.worldSeed,
+                        this.worldEntryPosition
+                    )
                 )
                 return
             }
@@ -294,7 +323,6 @@ export class BuildingScene implements Scene {
     }
 
     private getRooms(): Room[] {
-        if (this.building.rooms?.length) return this.building.rooms
         const spec = this.building.spec as any
         if (spec.children && Array.isArray(spec.children)) {
             return spec.children.filter((e: any) => e.kind === 'Room')

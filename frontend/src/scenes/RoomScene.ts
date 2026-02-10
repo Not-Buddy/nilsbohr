@@ -3,7 +3,7 @@
 
 import { Container, Graphics, Text, Rectangle } from 'pixi.js'
 import type { Scene } from '../types/Types'
-import type { Room, Building, City, Artifact } from '../types/SeedTypes'
+import type { Room, Building, City, Artifact, WorldSeed, ProjectResponse } from '../types/SeedTypes'
 import { SceneManager } from '../engine/SceneManager'
 import { BuildingScene } from './BuildingScene'
 import { Player, type CollisionRect } from '../sprites/Player'
@@ -21,6 +21,10 @@ export class RoomScene implements Scene {
     private entryPosition: { x: number; y: number }  // Position inside building to return to
     private cityEntryPosition: { x: number; y: number }  // City position to pass through
 
+    // World navigation context
+    private worldSeed?: WorldSeed | ProjectResponse
+    private worldEntryPosition?: { x: number; y: number }
+
     private camera = new Camera()
     private player?: Player
     private input?: Input
@@ -33,7 +37,9 @@ export class RoomScene implements Scene {
         city: City,
         manager: SceneManager,
         entryPosition: { x: number; y: number },
-        cityEntryPosition: { x: number; y: number }
+        cityEntryPosition: { x: number; y: number },
+        worldSeed?: WorldSeed | ProjectResponse,
+        worldEntryPosition?: { x: number; y: number }
     ) {
         this.room = room
         this.building = building
@@ -41,6 +47,8 @@ export class RoomScene implements Scene {
         this.manager = manager
         this.entryPosition = entryPosition
         this.cityEntryPosition = cityEntryPosition
+        this.worldSeed = worldSeed
+        this.worldEntryPosition = worldEntryPosition
     }
 
     async mount() {
@@ -238,9 +246,18 @@ export class RoomScene implements Scene {
         this.camera.update(dt)
 
         // ESC to exit back to building
+        // ESC to exit back to building
         if (this.input.isJustPressed('Escape')) {
             this.manager.switch(
-                new BuildingScene(this.building, this.city, this.manager, this.cityEntryPosition, this.entryPosition)
+                new BuildingScene(
+                    this.building,
+                    this.city,
+                    this.manager,
+                    this.cityEntryPosition,
+                    this.entryPosition,
+                    this.worldSeed,
+                    this.worldEntryPosition
+                )
             )
             return
         }
@@ -256,7 +273,6 @@ export class RoomScene implements Scene {
     }
 
     private getArtifacts(): Artifact[] {
-        if (this.room.artifacts?.length) return this.room.artifacts
         const spec = this.room.spec as any
         if (spec.children && Array.isArray(spec.children)) {
             return spec.children.filter((e: any) => e.kind === 'Artifact')

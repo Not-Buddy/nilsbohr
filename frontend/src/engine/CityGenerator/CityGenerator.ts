@@ -206,37 +206,61 @@ export class CityGenerator {
     // DATA ACCESSORS
     // ==========================================================================
 
+    /**
+     *  Updated to traverse the children recursively and flatten all "District" nodes.
+     *  Visualizer treats all districts as siblings in the city for now.
+     */
     private getDistricts(): District[] {
-        if (this.city.districts && this.city.districts.length > 0) {
-            return this.city.districts
+        const districts: District[] = []
+
+        // Helper to recursively find districts
+        const collectDistricts = (entities: import('../../types/SeedTypes').GameEntity[]) => {
+            for (const entity of entities) {
+                if (entity.kind === 'District') {
+                    districts.push(entity)
+                    // Continue searching inside this district for sub-districts
+                    if (entity.spec.children) {
+                        collectDistricts(entity.spec.children)
+                    }
+                }
+            }
         }
-        const spec = this.city.spec as any
-        if (spec.children && Array.isArray(spec.children)) {
-            return spec.children.filter((e: any) => e.kind === 'District')
+
+        if (this.city.spec.children) {
+            collectDistricts(this.city.spec.children)
         }
-        return []
+
+        return districts
     }
 
+    /**
+     * Updated to find buildings inside a district.
+     * Note: If a district has nested sub-districts, they are already handled by getDistricts().
+     * Here we only want direct Building children of THIS district to avoid duplication.
+     * BUT: backend might put files directly in folders.
+     */
     private getBuildings(district: District): Building[] {
-        if (district.buildings && district.buildings.length > 0) {
-            return district.buildings
+        const buildings: Building[] = []
+        if (district.spec.children) {
+            for (const child of district.spec.children) {
+                if (child.kind === 'Building') {
+                    buildings.push(child)
+                }
+            }
         }
-        const spec = district.spec as any
-        if (spec.children && Array.isArray(spec.children)) {
-            return spec.children.filter((e: any) => e.kind === 'Building')
-        }
-        return []
+        return buildings
     }
 
     private getRooms(building: Building): Room[] {
-        if (building.rooms && building.rooms.length > 0) {
-            return building.rooms
+        const rooms: Room[] = []
+        if (building.spec.children) {
+            for (const child of building.spec.children) {
+                if (child.kind === 'Room') {
+                    rooms.push(child)
+                }
+            }
         }
-        const spec = building.spec as any
-        if (spec.children && Array.isArray(spec.children)) {
-            return spec.children.filter((e: any) => e.kind === 'Room')
-        }
-        return []
+        return rooms
     }
 
     // ==========================================================================

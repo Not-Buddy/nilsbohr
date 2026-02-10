@@ -68,12 +68,13 @@ fn extract_function_calls(node: Node, source: &[u8]) -> Vec<String> {
 
 fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
     if node.kind() == "call_expression"
-        && let Some(func_node) = node.child_by_field_name("function") {
-            let func_name = get_text(func_node, source);
-            if !func_name.is_empty() {
-                calls.push(func_name);
-            }
+        && let Some(func_node) = node.child_by_field_name("function")
+    {
+        let func_name = get_text(func_node, source);
+        if !func_name.is_empty() {
+            calls.push(func_name);
         }
+    }
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
@@ -213,6 +214,7 @@ fn parse_node(
                     loc,
                     imports: vec![],
                     children,
+                    metadata: None,
                 });
             }
 
@@ -241,6 +243,7 @@ fn parse_node(
                     loc,
                     imports: vec![],
                     children,
+                    metadata: None,
                 });
             }
 
@@ -292,6 +295,7 @@ fn parse_node(
                     return_type,
                     calls,
                     children,
+                    metadata: None,
                 });
             }
 
@@ -327,6 +331,7 @@ fn parse_node(
                                 datatype: datatype.clone(),
                                 is_mutable: !is_const,
                                 value_hint: None,
+                                metadata: None,
                             });
                         }
                     }
@@ -353,6 +358,7 @@ fn parse_node(
                             datatype: datatype.clone(),
                             is_mutable: true,
                             value_hint: None,
+                            metadata: None,
                         });
                     }
                 }
@@ -394,6 +400,7 @@ fn parse_enum_values(node: Node, source: &[u8], parent_id: &str) -> Vec<GameEnti
                     datatype: "int".to_string(),
                     is_mutable: false,
                     value_hint,
+                    metadata: None,
                 });
             }
         }

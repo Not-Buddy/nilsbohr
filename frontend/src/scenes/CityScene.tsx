@@ -300,7 +300,15 @@ export class CityScene implements Scene {
 
       if (this.input.isJustPressed('KeyJ')) {
         const entryPos = { x: this.player.sprite.x, y: this.player.sprite.y }
-        this.manager.switch(new BuildingScene(this.nearbyBuilding, this.city, this.manager, entryPos))
+        this.manager.switch(new BuildingScene(
+          this.nearbyBuilding,
+          this.city,
+          this.manager,
+          entryPos,
+          undefined,
+          this.worldSeed,
+          this.worldEntryPosition
+        ))
         return
       }
     } else {
@@ -367,12 +375,21 @@ export class CityScene implements Scene {
 
   // --- Helpers ---
   private getDistricts(): District[] {
-    if (this.city.districts?.length) return this.city.districts
-    return (this.city.spec as any).children?.filter((e: any) => e.kind === 'District') || []
+    const districts: District[] = []
+    const traverse = (entities: any[]) => {
+      for (const e of entities) {
+        if (e.kind === 'District') {
+          districts.push(e)
+          if (e.spec.children) traverse(e.spec.children)
+        }
+      }
+    }
+    if ((this.city.spec as any).children) traverse((this.city.spec as any).children)
+    return districts
   }
 
   private getBuildings(district: District): Building[] {
-    if (district.buildings?.length) return district.buildings
+    // Only direct children buildings for rendering in this district
     return (district.spec as any).children?.filter((e: any) => e.kind === 'Building') || []
   }
 

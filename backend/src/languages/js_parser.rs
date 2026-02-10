@@ -3,10 +3,7 @@ use tracing::{debug, instrument, trace};
 use tree_sitter::{Node, Parser};
 
 /// Parse JavaScript code (.js, .jsx) and return (entities, imports)
-pub fn parse_javascript_code(
-    source: &str,
-    parent_id: &str,
-) -> (Vec<GameEntity>, Vec<String>) {
+pub fn parse_javascript_code(source: &str, parent_id: &str) -> (Vec<GameEntity>, Vec<String>) {
     let mut parser = Parser::new();
 
     parser
@@ -27,9 +24,10 @@ fn get_text<'a>(node: Node<'a>, source: &'a [u8]) -> String {
 
 fn is_exported(node: Node, _source: &[u8]) -> bool {
     if let Some(parent) = node.parent()
-        && parent.kind() == "export_statement" {
-            return true;
-        }
+        && parent.kind() == "export_statement"
+    {
+        return true;
+    }
     node.children(&mut node.walk())
         .any(|c| c.kind() == "export")
 }
@@ -55,9 +53,9 @@ fn extract_parameters(node: Node, source: &[u8]) -> Vec<Parameter> {
             if kind == "identifier" || kind == "assignment_pattern" || kind == "rest_pattern" {
                 let name = get_text(child, source);
                 if !name.is_empty() && name != "(" && name != ")" && name != "," {
-                    params.push(Parameter { 
-                        name, 
-                        datatype: "any".to_string() // JS is dynamically typed
+                    params.push(Parameter {
+                        name,
+                        datatype: "any".to_string(), // JS is dynamically typed
                     });
                 }
             }
@@ -77,17 +75,18 @@ fn extract_function_calls(node: Node, source: &[u8]) -> Vec<String> {
 
 fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
     if node.kind() == "call_expression"
-        && let Some(func_node) = node.child_by_field_name("function") {
-            let func_name = get_text(func_node, source);
-            let clean_name = func_name
-                .split('.')
-                .next_back()
-                .unwrap_or(&func_name)
-                .to_string();
-            if !clean_name.is_empty() {
-                calls.push(clean_name);
-            }
+        && let Some(func_node) = node.child_by_field_name("function")
+    {
+        let func_name = get_text(func_node, source);
+        let clean_name = func_name
+            .split('.')
+            .next_back()
+            .unwrap_or(&func_name)
+            .to_string();
+        if !clean_name.is_empty() {
+            calls.push(clean_name);
         }
+    }
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
@@ -199,20 +198,27 @@ fn parse_node(
                 // Check for require calls
                 let mut decl_cursor = child.walk();
                 for decl in child.children(&mut decl_cursor) {
-                     if decl.kind() == "variable_declarator"
+                    if decl.kind() == "variable_declarator"
                         && let Some(value) = decl.child_by_field_name("value")
-                            && value.kind() == "call_expression" {
-                                let func = value.child_by_field_name("function").map(|n| get_text(n, source)).unwrap_or_default();
-                                if func == "require"
-                                     && let Some(args) = value.child_by_field_name("arguments") {
-                                         let path = get_text(args, source).trim_matches(|c| c == '(' || c == ')' || c == '"' || c == '\'').to_string();
-                                         if path.starts_with("./") || path.starts_with("../") {
-                                             imports.push(format!("{}.js", path));
-                                         }
-                                     }
+                        && value.kind() == "call_expression"
+                    {
+                        let func = value
+                            .child_by_field_name("function")
+                            .map(|n| get_text(n, source))
+                            .unwrap_or_default();
+                        if func == "require"
+                            && let Some(args) = value.child_by_field_name("arguments")
+                        {
+                            let path = get_text(args, source)
+                                .trim_matches(|c| c == '(' || c == ')' || c == '"' || c == '\'')
+                                .to_string();
+                            if path.starts_with("./") || path.starts_with("../") {
+                                imports.push(format!("{}.js", path));
                             }
+                        }
+                    }
                 }
-                
+
                 // Re-process for variables (artifacts)
                 entities.extend(parse_variables(child, source, parent_id, imports));
             }
@@ -238,6 +244,7 @@ fn parse_node(
                     loc,
                     imports: vec![],
                     children,
+                    metadata: None,
                 });
             }
 
@@ -281,6 +288,7 @@ fn parse_node(
                     return_type: None, // JS has no return types
                     calls,
                     children,
+                    metadata: None,
                 });
             }
 
@@ -317,6 +325,7 @@ fn parse_node(
                     return_type: None,
                     calls,
                     children,
+                    metadata: None,
                 });
             }
 
@@ -337,6 +346,7 @@ fn parse_node(
                     datatype: "any".to_string(),
                     is_mutable: true,
                     value_hint: None,
+                    metadata: None,
                 });
             }
 
@@ -352,10 +362,15 @@ fn parse_node(
 }
 
 /// Helper to parse variables specifically (separated from main loop for clarity)
-fn parse_variables(node: Node, source: &[u8], parent_id: &str, imports: &mut Vec<String>) -> Vec<GameEntity> {
+fn parse_variables(
+    node: Node,
+    source: &[u8],
+    parent_id: &str,
+    imports: &mut Vec<String>,
+) -> Vec<GameEntity> {
     let mut entities = Vec::new();
     let mut decl_cursor = node.walk();
-    
+
     for decl in node.children(&mut decl_cursor) {
         if decl.kind() == "variable_declarator" {
             let name = decl
@@ -368,36 +383,38 @@ fn parse_variables(node: Node, source: &[u8], parent_id: &str, imports: &mut Vec
 
             // Check if the value is an Arrow Function
             if let Some(val) = value_node
-                && val.kind() == "arrow_function" {
-                    let loc = count_lines(val);
-                    let is_async_fn = is_async(val, source);
-                    let parameters = extract_parameters(val, source);
-                    let complexity = calculate_complexity(val);
-                    let calls = extract_function_calls(val, source);
-                    let children = parse_function_body(val, source, &id, imports);
+                && val.kind() == "arrow_function"
+            {
+                let loc = count_lines(val);
+                let is_async_fn = is_async(val, source);
+                let parameters = extract_parameters(val, source);
+                let complexity = calculate_complexity(val);
+                let calls = extract_function_calls(val, source);
+                let children = parse_function_body(val, source, &id, imports);
 
-                    debug!(name = %name, kind = "Room", "Found arrow function");
-                    entities.push(GameEntity::Room {
-                        id,
-                        name,
-                        room_type: "arrow_function".to_string(),
-                        is_main: false,
-                        is_async: is_async_fn,
-                        visibility: if is_exported(node, source) {
-                            "public"
-                        } else {
-                            "private"
-                        }
-                        .to_string(),
-                        complexity,
-                        loc,
-                        parameters,
-                        return_type: None,
-                        calls,
-                        children,
-                    });
-                    continue;
-                }
+                debug!(name = %name, kind = "Room", "Found arrow function");
+                entities.push(GameEntity::Room {
+                    id,
+                    name,
+                    room_type: "arrow_function".to_string(),
+                    is_main: false,
+                    is_async: is_async_fn,
+                    visibility: if is_exported(node, source) {
+                        "public"
+                    } else {
+                        "private"
+                    }
+                    .to_string(),
+                    complexity,
+                    loc,
+                    parameters,
+                    return_type: None,
+                    calls,
+                    children,
+                    metadata: None,
+                });
+                continue;
+            }
 
             // Otherwise it's a variable/constant
             let artifact_type = if get_text(node, source).starts_with("const") {
@@ -426,6 +443,7 @@ fn parse_variables(node: Node, source: &[u8], parent_id: &str, imports: &mut Vec
                 datatype: "any".to_string(),
                 is_mutable: !get_text(node, source).starts_with("const"),
                 value_hint,
+                metadata: None,
             });
         }
     }

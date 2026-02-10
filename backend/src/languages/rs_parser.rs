@@ -77,21 +77,22 @@ fn extract_function_calls(node: Node, source: &[u8], _parent_id: &str) -> Vec<St
 
 fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
     if node.kind() == "call_expression"
-        && let Some(func_node) = node.child_by_field_name("function") {
-            let func_name = get_text(func_node, source);
-            // Clean up the function name
-            let clean_name = func_name
-                .split("::")
-                .last()
-                .unwrap_or(&func_name)
-                .split('.')
-                .next_back()
-                .unwrap_or(&func_name)
-                .to_string();
-            if !clean_name.is_empty() {
-                calls.push(clean_name);
-            }
+        && let Some(func_node) = node.child_by_field_name("function")
+    {
+        let func_name = get_text(func_node, source);
+        // Clean up the function name
+        let clean_name = func_name
+            .split("::")
+            .last()
+            .unwrap_or(&func_name)
+            .split('.')
+            .next_back()
+            .unwrap_or(&func_name)
+            .to_string();
+        if !clean_name.is_empty() {
+            calls.push(clean_name);
         }
+    }
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
@@ -167,6 +168,7 @@ fn parse_rust_node(
                     loc,
                     imports: vec![],
                     children,
+                    metadata: None,
                 });
             }
 
@@ -175,7 +177,7 @@ fn parse_rust_node(
                 // Handle both inherent impls (impl Type) and trait impls (impl Trait for Type)
                 let trait_node = child.child_by_field_name("trait");
                 let self_type_node = child.child_by_field_name("type");
-                
+
                 let name = if let Some(trait_node) = trait_node {
                     // This is a trait implementation: impl Trait for Type
                     let trait_name = get_text(trait_node, source);
@@ -192,7 +194,11 @@ fn parse_rust_node(
                     "impl unknown".to_string()
                 };
 
-                let id = format!("{}::{}", parent_id, name.replace(' ', "_").replace(['<', '>', ':'], "_"));
+                let id = format!(
+                    "{}::{}",
+                    parent_id,
+                    name.replace(' ', "_").replace(['<', '>', ':'], "_")
+                );
                 let children = parse_rust_node(child, source, &id, imports);
                 let loc = count_lines(child);
 
@@ -204,6 +210,7 @@ fn parse_rust_node(
                     loc,
                     imports: vec![],
                     children,
+                    metadata: None,
                 });
             }
 
@@ -255,6 +262,7 @@ fn parse_rust_node(
                     return_type,
                     calls,
                     children: contents,
+                    metadata: None,
                 });
             }
 
@@ -302,6 +310,7 @@ fn parse_rust_node(
                         datatype,
                         is_mutable,
                         value_hint,
+                        metadata: None,
                     });
                 }
             }
@@ -326,6 +335,7 @@ fn parse_rust_node(
                         datatype,
                         is_mutable: false,
                         value_hint: None,
+                        metadata: None,
                     });
                 }
             }
@@ -401,7 +411,7 @@ mod tests {
         "#;
 
         let (entities, _imports) = parse_rust_code(source_code, "test_file");
-        
+
         // Look for impl blocks in the parsed entities
         let impl_blocks: Vec<_> = entities
             .iter()
@@ -415,11 +425,11 @@ mod tests {
             .collect();
 
         assert_eq!(impl_blocks.len(), 2, "Should find 2 impl blocks");
-        
+
         // Check that we have both an inherent impl and a trait impl
         let mut has_inherent_impl = false;
         let mut has_trait_impl = false;
-        
+
         for entity in impl_blocks {
             if let GameEntity::Building { name, .. } = entity {
                 if name.contains("impl Person") && !name.contains("for") {
@@ -429,7 +439,7 @@ mod tests {
                 }
             }
         }
-        
+
         assert!(has_inherent_impl, "Should have an inherent impl block");
         assert!(has_trait_impl, "Should have a trait impl block");
     }

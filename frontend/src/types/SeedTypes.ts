@@ -1,5 +1,5 @@
 // types/SeedTypes.ts
-// Updated to match the new flat backend response structure
+// Updated to match the new recursive backend response structure
 
 // ----------- Project Meta -------------
 
@@ -32,7 +32,7 @@ export interface Highway {
   id: string
   from_id: string
   to_id: string
-  route_type: RouteType | string  // Accept both enum and legacy string
+  route_type: RouteType | string
   bidirectional: boolean
   metadata?: Record<string, unknown> | null
 }
@@ -44,6 +44,10 @@ export interface Parameter {
   datatype: string
 }
 
+// ----------- Game Entity Union (for recursive children) -------------
+
+export type GameEntity = City | District | Building | Room | Artifact
+
 // ----------- Artifacts -------------
 
 export interface ArtifactSpec {
@@ -53,6 +57,7 @@ export interface ArtifactSpec {
   datatype: string
   is_mutable: boolean
   value_hint: string | null
+  metadata?: Record<string, string> | null
 }
 
 export interface Artifact {
@@ -71,15 +76,17 @@ export interface RoomSpec {
   visibility: string
   complexity: number
   loc: number
-  parameters: string
+  parameters: Parameter[] // Updated directly to strict type
   return_type: string | null
   calls: string[]
+  children?: GameEntity[] // Recursive children
+  metadata?: Record<string, string> | null
 }
 
 export interface Room {
   kind: 'Room'
   spec: RoomSpec
-  artifacts: Artifact[]
+  // Legacy support removed: children are now in spec or handled recursively
 }
 
 // ----------- Buildings -------------
@@ -91,12 +98,14 @@ export interface BuildingSpec {
   is_public: boolean
   loc: number
   imports: string[]
+  children?: GameEntity[] // Recursive children
+  metadata?: Record<string, string> | null
 }
 
 export interface Building {
   kind: 'Building'
   spec: BuildingSpec
-  rooms: Room[]
+  // Legacy support removed
 }
 
 // ----------- Districts -------------
@@ -105,12 +114,13 @@ export interface DistrictSpec {
   id: string
   name: string
   path: string
+  children?: GameEntity[] // Recursive children
 }
 
 export interface District {
   kind: 'District'
   spec: DistrictSpec
-  buildings: Building[]
+  // Legacy support removed
 }
 
 // ----------- Cities -------------
@@ -127,14 +137,15 @@ export interface CitySpec {
   name: string
   language: string
   theme: string
-  entrypoint_id: string | null
+  entry_point_id: string | null // Fixed typo: entrypoint_id -> entry_point_id
   stats: CityStats
+  children?: GameEntity[] // Recursive children
 }
 
 export interface City {
   kind: 'City'
   spec: CitySpec
-  districts: District[]
+  // Legacy support removed
 }
 
 // ----------- Main Response -------------
@@ -145,24 +156,7 @@ export interface ProjectResponse {
   highways: Highway[]
 }
 
-// ----------- Legacy Compatibility (for sample.json) -------------
-// These types are kept for compatibility with the old structure
-
-export type GameEntity = City | District | Building | Room | Artifact
-
-export interface EntityWrapper<TKind extends string, TSpec> {
-  kind: TKind
-  spec: TSpec
-}
-
-export interface Route {
-  id?: string  // Optional for backwards compatibility
-  from_id: string
-  to_id: string
-  route_type: RouteType | string
-  bidirectional?: boolean
-  metadata?: Record<string, unknown> | null
-}
+// ----------- Compatibility Types (if needed) -------------
 
 export interface WorldMeta {
   total_cities?: number
@@ -175,15 +169,11 @@ export interface WorldMeta {
 
 export interface WorldSeed {
   world_meta: WorldMeta
-  highways: Route[]
+  highways: Highway[] // Renamed from Route to Highway for consistency, but kept Route alias below
   cities: City[]
 }
 
-export interface RootResponse {
-  project_name: string
-  generated_at: string
-  seed: WorldSeed
-}
+export type Route = Highway
 
 // WorldResponse - matches Rust backend's WorldResponse struct
 export interface WorldResponse {
@@ -191,3 +181,6 @@ export interface WorldResponse {
   generated_at: string
   seed: WorldSeed
 }
+
+// Alias for compatibility if needed elsewhere
+export type RootResponse = WorldResponse
