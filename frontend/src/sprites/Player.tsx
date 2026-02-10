@@ -231,24 +231,54 @@ export class Player {
       const rectTop = rect.y
       const rectBottom = rect.y + rect.height
 
-      // Check AABB intersection
+      // Check AABB intersection at proposed position
       const collides =
         playerRight > rectLeft &&
         playerLeft < rectRight &&
         playerBottom > rectTop &&
         playerTop < rectBottom
 
-      if (collides) {
-        // If enterable (like cities), allow entry from below
-        if (rect.enterable) {
-          // Allow if player is approaching from below (player's top is below rect's bottom)
-          const approachingFromBelow = this.sprite.y > rectBottom - r
-          if (approachingFromBelow) {
-            continue  // Don't block - allow entry
-          }
+      if (!collides) continue
+
+      // If enterable (like cities), allow entry from below
+      if (rect.enterable) {
+        const approachingFromBelow = this.sprite.y > rectBottom - r
+        if (approachingFromBelow) {
+          continue  // Don't block - allow entry
         }
-        return true  // Collision detected
       }
+
+      // ESCAPE FIX: Check if player is ALREADY overlapping at current position.
+      // If so, only block movement that pushes DEEPER into the rect.
+      // This prevents the player from getting permanently stuck.
+      const curLeft = this.sprite.x - r
+      const curRight = this.sprite.x + r
+      const curTop = this.sprite.y - r
+      const curBottom = this.sprite.y + r
+
+      const alreadyOverlapping =
+        curRight > rectLeft &&
+        curLeft < rectRight &&
+        curBottom > rectTop &&
+        curTop < rectBottom
+
+      if (alreadyOverlapping) {
+        // Calculate overlap depth at current vs proposed position
+        // Allow the move if it reduces overlap (moving away from the rect)
+        const curOverlapX = Math.min(curRight - rectLeft, rectRight - curLeft)
+        const curOverlapY = Math.min(curBottom - rectTop, rectBottom - curTop)
+        const newOverlapX = Math.min(playerRight - rectLeft, rectRight - playerLeft)
+        const newOverlapY = Math.min(playerBottom - rectTop, rectBottom - playerTop)
+
+        const curOverlap = Math.min(curOverlapX, curOverlapY)
+        const newOverlap = Math.min(newOverlapX, newOverlapY)
+
+        if (newOverlap <= curOverlap) {
+          continue  // Moving away or same — allow escape
+        }
+      }
+
+      return true  // Collision detected, block movement
     }
     return false
   }

@@ -8,6 +8,7 @@ import { Input } from '../engine/Inputs'
 import { Camera } from '../engine/Camera'
 import { WorldGenerator } from '../engine/WorldGenerator'
 import { ChunkManager } from '../engine/ChunkManager'
+import { WorldMiniMap } from '../engine/WorldMiniMap'
 
 import type { Scene } from '../types/Types'
 import type { City, ProjectResponse, WorldSeed } from '../types/SeedTypes'
@@ -28,6 +29,7 @@ export class WorldScene implements Scene {
   private generator?: WorldGenerator
   private chunkManager?: ChunkManager
   private enterPrompt?: Container  // UI prompt for city entry
+  private minimap?: WorldMiniMap
 
   // Support both old WorldSeed and new ProjectResponse formats
   private projectResponse?: ProjectResponse
@@ -144,6 +146,27 @@ export class WorldScene implements Scene {
     this.camera.setBounds(new Rectangle(worldX, worldY, worldW, worldH))
     this.camera.follow(this.player.sprite)
     this.camera.snapToTarget()
+
+    // --- 6. World Minimap ---
+    const worldRect = new Rectangle(worldX, worldY, worldW, worldH)
+    this.minimap = new WorldMiniMap({
+      worldBounds: worldRect,
+      size: 200,
+      margin: 20,
+    })
+
+    // Get city positions from generator and pass to minimap
+    const cityPositions = this.generator.getAllCityPositions()
+    this.minimap.setCities(cities, cityPositions)
+    this.minimap.positionOnScreen(window.innerWidth, window.innerHeight)
+    this.container.addChild(this.minimap.container)
+
+    // Handle window resize for minimap
+    window.addEventListener('resize', this.handleResize)
+  }
+
+  private handleResize = (): void => {
+    this.minimap?.positionOnScreen(window.innerWidth, window.innerHeight)
   }
 
   update(dt: number) {
@@ -154,6 +177,9 @@ export class WorldScene implements Scene {
 
     // Update chunk loading based on player position
     this.chunkManager?.update(this.player.sprite.x, this.player.sprite.y)
+
+    // Update minimap player position
+    this.minimap?.updatePlayerPosition(this.player.sprite.x, this.player.sprite.y)
 
     // Build collision bounds from loaded city sprites
     const collisionBounds: CollisionRect[] = []
@@ -253,16 +279,19 @@ export class WorldScene implements Scene {
   }
 
   unmount() {
+    window.removeEventListener('resize', this.handleResize)
     this.input?.destroy()
     this.player?.destroy()
     this.chunkManager?.destroy()
     this.enterPrompt?.destroy()
+    this.minimap?.destroy()
 
     this.input = undefined
     this.player = undefined
     this.chunkManager = undefined
     this.generator = undefined
-    this.enterPrompt = undefined // Nullify the reference after destroying
+    this.enterPrompt = undefined
+    this.minimap = undefined
 
     this.container.destroy({
       children: true,
