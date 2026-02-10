@@ -6,6 +6,7 @@ import type { Scene } from '../types/Types'
 import type { Building, Room, City } from '../types/SeedTypes'
 import { SceneManager } from '../engine/SceneManager'
 import { CityScene } from './CityScene'
+import { RoomScene } from './RoomScene'
 import { Player, type CollisionRect } from '../sprites/Player'
 import { Input } from '../engine/Inputs'
 import { Camera } from '../engine/Camera'
@@ -17,19 +18,23 @@ export class BuildingScene implements Scene {
     private city: City
     private manager: SceneManager
     private mounted = false
-    private entryPosition: { x: number; y: number }  // Position to return to
+    private entryPosition: { x: number; y: number }  // City position to return to
+    private buildingSpawnPosition?: { x: number; y: number }  // Position inside building (when returning from room)
 
     private camera = new Camera()
     private player?: Player
     private input?: Input
     private worldBounds = new Rectangle(0, 0, 1000, 800)
     private roomBounds: CollisionRect[] = []
+    private nearbyRoom?: Room
+    private enterPrompt?: Container
 
-    constructor(building: Building, city: City, manager: SceneManager, entryPosition: { x: number; y: number }) {
+    constructor(building: Building, city: City, manager: SceneManager, entryPosition: { x: number; y: number }, buildingSpawnPosition?: { x: number; y: number }) {
         this.building = building
         this.city = city
         this.manager = manager
         this.entryPosition = entryPosition
+        this.buildingSpawnPosition = buildingSpawnPosition
     }
 
     async mount() {
@@ -123,14 +128,16 @@ export class BuildingScene implements Scene {
             roomSprite.position.set(placement.x, placement.y + 80) // Offset for header
             interior.addChild(roomSprite)
 
-            // Add collision bounds
-            this.roomBounds.push({
+            // Add collision bounds with room reference for entry detection
+            const bounds = {
                 x: placement.x - placement.width / 2,
                 y: placement.y + 80 - placement.height / 2,
                 width: placement.width,
                 height: placement.height,
                 enterable: false,
-            })
+                roomRef: placement.room,
+            }
+            this.roomBounds.push(bounds as CollisionRect)
         })
 
         this.camera.container.addChild(interior)
@@ -138,9 +145,9 @@ export class BuildingScene implements Scene {
         // --- Player setup ---
         this.input = new Input()
 
-        // Spawn at bottom center (entrance)
-        const spawnX = worldW / 2
-        const spawnY = worldH - 60
+        // Spawn at saved position (returning from room) or bottom center (entering from city)
+        const spawnX = this.buildingSpawnPosition?.x ?? worldW / 2
+        const spawnY = this.buildingSpawnPosition?.y ?? worldH - 60
         this.player = new Player(spawnX, spawnY)
         await this.player.load()
         this.player.setCollisionBounds(this.roomBounds)
@@ -164,7 +171,81 @@ export class BuildingScene implements Scene {
             return
         }
 
+        // Check for nearby rooms (for entry)
+        this.nearbyRoom = undefined
+        const playerX = this.player.sprite.x
+        const playerY = this.player.sprite.y
+
+        for (const bounds of this.roomBounds) {
+            const room = (bounds as any).roomRef as Room | undefined
+            if (!room) continue
+
+            // Check if player is near bottom of room (entry zone)
+            const nearBottom =
+                playerX > bounds.x &&
+                playerX < bounds.x + bounds.width &&
+                playerY > bounds.y + bounds.height - 10 &&
+                playerY < bounds.y + bounds.height + 50
+
+            if (nearBottom) {
+                this.nearbyRoom = room
+                break
+            }
+        }
+
+        // Show/hide entry prompt
+        if (this.nearbyRoom) {
+            this.showEnterPrompt()
+
+            if (this.input.isJustPressed('KeyJ')) {
+                const buildingPos = { x: this.player.sprite.x, y: this.player.sprite.y }
+                this.manager.switch(
+                    new RoomScene(this.nearbyRoom, this.building, this.city, this.manager, buildingPos, this.entryPosition)
+                )
+                return
+            }
+        } else {
+            this.hideEnterPrompt()
+        }
+
         this.input.updatePrevious()
+    }
+
+    private showEnterPrompt(): void {
+        if (!this.enterPrompt) {
+            this.enterPrompt = new Container()
+
+            const bg = new Graphics()
+            bg.roundRect(-110, -22, 220, 44, 10)
+            bg.fill({ color: 0x000000, alpha: 0.85 })
+            bg.stroke({ width: 2, color: 0x3b82f6 })
+            this.enterPrompt.addChild(bg)
+
+            const text = new Text({
+                text: 'Press J to Enter Room',
+                style: {
+                    fontFamily: 'monospace',
+                    fontSize: 15,
+                    fill: 0x3b82f6,
+                }
+            })
+            text.anchor.set(0.5, 0.5)
+            this.enterPrompt.addChild(text)
+
+            this.container.addChild(this.enterPrompt)
+        }
+
+        this.enterPrompt.position.set(
+            window.innerWidth / 2,
+            window.innerHeight - 80
+        )
+        this.enterPrompt.visible = true
+    }
+
+    private hideEnterPrompt(): void {
+        if (this.enterPrompt) {
+            this.enterPrompt.visible = false
+        }
     }
 
     unmount() {
