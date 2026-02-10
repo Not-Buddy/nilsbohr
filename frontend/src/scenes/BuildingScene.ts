@@ -3,7 +3,7 @@
 
 import { Container, Graphics, Text, Rectangle } from 'pixi.js'
 import type { Scene } from '../types/Types'
-import type { Building, Room, City } from '../types/SeedTypes'
+import type { Building, Room, City, Artifact } from '../types/SeedTypes'
 import { SceneManager } from '../engine/SceneManager'
 import { CityScene } from './CityScene'
 import { RoomScene } from './RoomScene'
@@ -11,6 +11,7 @@ import { Player, type CollisionRect } from '../sprites/Player'
 import { Input } from '../engine/Inputs'
 import { Camera } from '../engine/Camera'
 import { createRoomSprite, layoutRooms } from '../sprites/Room'
+import { createArtifactSprite, layoutArtifacts } from '../sprites/ArtifactSprite'
 
 export class BuildingScene implements Scene {
     container = new Container()
@@ -120,25 +121,62 @@ export class BuildingScene implements Scene {
         exitHint.position.set(worldW - 30, 20)
         interior.addChild(exitHint)
 
-        // --- Layout and render rooms ---
-        const placements = layoutRooms(rooms, worldW, worldH - 80)
+        // --- Layout and render rooms or direct artifacts ---
+        if (rooms.length > 0) {
+            const placements = layoutRooms(rooms, worldW, worldH - 80)
 
-        placements.forEach(placement => {
-            const roomSprite = createRoomSprite(placement.room)
-            roomSprite.position.set(placement.x, placement.y + 80) // Offset for header
-            interior.addChild(roomSprite)
+            placements.forEach(placement => {
+                const roomSprite = createRoomSprite(placement.room)
+                roomSprite.position.set(placement.x, placement.y + 80) // Offset for header
+                interior.addChild(roomSprite)
 
-            // Add collision bounds with room reference for entry detection
-            const bounds = {
-                x: placement.x - placement.width / 2,
-                y: placement.y + 80 - placement.height / 2,
-                width: placement.width,
-                height: placement.height,
-                enterable: false,
-                roomRef: placement.room,
+                // Add collision bounds with room reference for entry detection
+                const bounds = {
+                    x: placement.x - placement.width / 2,
+                    y: placement.y + 80 - placement.height / 2,
+                    width: placement.width,
+                    height: placement.height,
+                    enterable: false,
+                    roomRef: placement.room,
+                }
+                this.roomBounds.push(bounds as CollisionRect)
+            })
+        } else {
+            // No rooms — check for direct artifacts at building level
+            const directArtifacts = this.getDirectArtifacts()
+
+            if (directArtifacts.length > 0) {
+                const artPlacements = layoutArtifacts(directArtifacts, worldW, worldH - 80)
+
+                artPlacements.forEach(placement => {
+                    const artSprite = createArtifactSprite(placement.artifact)
+                    artSprite.position.set(placement.x, placement.y + 80)
+                    interior.addChild(artSprite)
+
+                    this.roomBounds.push({
+                        x: placement.x - placement.width / 2,
+                        y: placement.y + 80 - placement.height / 2,
+                        width: placement.width,
+                        height: placement.height,
+                        enterable: false,
+                    })
+                })
+            } else {
+                // Truly empty building
+                const emptyMsg = new Text({
+                    text: '— Empty building (no functions or variables) —',
+                    style: {
+                        fontFamily: 'monospace',
+                        fontSize: 14,
+                        fill: 0x475569,
+                        fontStyle: 'italic',
+                    }
+                })
+                emptyMsg.anchor.set(0.5, 0.5)
+                emptyMsg.position.set(worldW / 2, worldH / 2)
+                interior.addChild(emptyMsg)
             }
-            this.roomBounds.push(bounds as CollisionRect)
-        })
+        }
 
         this.camera.container.addChild(interior)
 
@@ -260,6 +298,14 @@ export class BuildingScene implements Scene {
         const spec = this.building.spec as any
         if (spec.children && Array.isArray(spec.children)) {
             return spec.children.filter((e: any) => e.kind === 'Room')
+        }
+        return []
+    }
+
+    private getDirectArtifacts(): Artifact[] {
+        const spec = this.building.spec as any
+        if (spec.children && Array.isArray(spec.children)) {
+            return spec.children.filter((e: any) => e.kind === 'Artifact')
         }
         return []
     }
