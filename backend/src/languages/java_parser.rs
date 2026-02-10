@@ -89,14 +89,13 @@ fn extract_function_calls(node: Node, source: &[u8]) -> Vec<String> {
 }
 
 fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
-    if node.kind() == "method_invocation" {
-        if let Some(name_node) = node.child_by_field_name("name") {
+    if node.kind() == "method_invocation"
+        && let Some(name_node) = node.child_by_field_name("name") {
             let name = get_text(name_node, source);
             if !name.is_empty() {
                 calls.push(name);
             }
         }
-    }
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
@@ -378,7 +377,7 @@ fn parse_node(
 
             // --- FIELDS (Artifacts) ---
             "field_declaration" => {
-                let (visibility, _is_static, is_final) = extract_modifiers(child, source);
+                let (_visibility, _is_static, is_final) = extract_modifiers(child, source);
                 let datatype = child
                     .child_by_field_name("type")
                     .map(|n| get_text(n, source))

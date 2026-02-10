@@ -21,7 +21,7 @@ pub async fn parse_repo_handler(Json(payload): Json<RepoRequest>) -> impl IntoRe
     let project_name = payload
         .url
         .split('/')
-        .last()
+        .next_back()
         .unwrap_or("project")
         .replace(".git", "");
 

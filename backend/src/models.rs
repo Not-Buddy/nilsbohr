@@ -57,6 +57,7 @@ pub struct Route {
 }
 
 #[derive(Serialize, Debug, Clone)]
+#[allow(dead_code)]
 pub enum RouteType {
     FunctionCall,
     Import,

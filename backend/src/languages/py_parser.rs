@@ -103,20 +103,19 @@ fn extract_function_calls(node: Node, source: &[u8]) -> Vec<String> {
 }
 
 fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
-    if node.kind() == "call" {
-        if let Some(func_node) = node.child_by_field_name("function") {
+    if node.kind() == "call"
+        && let Some(func_node) = node.child_by_field_name("function") {
             let func_name = get_text(func_node, source);
             // Get the last part of a dotted name (e.g., "self.method" -> "method")
             let clean_name = func_name
                 .split('.')
-                .last()
+                .next_back()
                 .unwrap_or(&func_name)
                 .to_string();
             if !clean_name.is_empty() {
                 calls.push(clean_name);
             }
         }
-    }
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
@@ -219,8 +218,8 @@ fn is_async_function(node: Node, source: &[u8]) -> bool {
 
 fn has_decorator(node: Node, decorator_name: &str, source: &[u8]) -> bool {
     // Look for decorator in parent or sibling nodes
-    if let Some(parent) = node.parent() {
-        if parent.kind() == "decorated_definition" {
+    if let Some(parent) = node.parent()
+        && parent.kind() == "decorated_definition" {
             let mut cursor = parent.walk();
             for child in parent.children(&mut cursor) {
                 if child.kind() == "decorator" {
@@ -231,7 +230,6 @@ fn has_decorator(node: Node, decorator_name: &str, source: &[u8]) -> bool {
                 }
             }
         }
-    }
     false
 }
 

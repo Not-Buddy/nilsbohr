@@ -110,11 +110,10 @@ fn collect_files(dir: &Path, root_dir: &Path, results: &mut Vec<ParsedFile>) {
                 ".git",
             ];
             if path.is_dir() {
-                if let Some(name) = path.file_name() {
-                    if skip_dirs.contains(&name.to_string_lossy().as_ref()) {
+                if let Some(name) = path.file_name()
+                    && skip_dirs.contains(&name.to_string_lossy().as_ref()) {
                         continue;
                     }
-                }
                 collect_files(&path, root_dir, results);
             } else {
                 let relative_path = path.strip_prefix(root_dir).unwrap_or(&path);
@@ -276,11 +275,11 @@ pub fn generate_world(root_path: &Path) -> WorldSeed {
 }
 
 /// Find the main entry point for a language
-fn find_entry_point(children: &[GameEntity], lang: &str) -> Option<String> {
+fn find_entry_point(children: &[GameEntity], _lang: &str) -> Option<String> {
     for child in children {
         match child {
             GameEntity::Building { children, .. } | GameEntity::District { children, .. } => {
-                if let Some(id) = find_entry_point(children, lang) {
+                if let Some(id) = find_entry_point(children, _lang) {
                     return Some(id);
                 }
             }
@@ -303,9 +302,7 @@ fn calculate_complexity_score(buildings: u32, rooms: u32, routes: &[Route]) -> f
     let room_score = (rooms as f32 / 50.0).min(4.0);
     let route_score = (routes.len() as f32 / 100.0).min(3.0);
 
-    (building_score + room_score + route_score)
-        .min(10.0)
-        .max(1.0)
+    (building_score + room_score + route_score).clamp(1.0, 10.0)
 }
 
 /// Helper: Turns a list of paths + files into a nested District/Building tree
@@ -316,7 +313,7 @@ fn reconstruct_hierarchy(files: Vec<ParsedFile>) -> Vec<GameEntity> {
     for file in files {
         // Get the parent directory path
         let path_str = file.path.to_string_lossy();
-        let relative_path = path_str.as_ref();
+        let _relative_path = path_str.as_ref();
 
         // Extract parent directory from the file's ID
         if let GameEntity::Building { id, .. } = &file.entity {
@@ -345,7 +342,7 @@ fn reconstruct_hierarchy(files: Vec<ParsedFile>) -> Vec<GameEntity> {
             });
         } else {
             // Create district for this directory
-            let district_name = dir_path.split('/').last().unwrap_or(&dir_path);
+            let district_name = dir_path.split('/').next_back().unwrap_or(&dir_path);
             result.push(GameEntity::District {
                 id: format!("district_{}", dir_path.replace('/', "_")),
                 name: district_name.to_string(),

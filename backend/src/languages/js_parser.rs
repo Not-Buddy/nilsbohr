@@ -25,12 +25,11 @@ fn get_text<'a>(node: Node<'a>, source: &'a [u8]) -> String {
     node.utf8_text(source).unwrap_or("").to_string()
 }
 
-fn is_exported(node: Node, source: &[u8]) -> bool {
-    if let Some(parent) = node.parent() {
-        if parent.kind() == "export_statement" {
+fn is_exported(node: Node, _source: &[u8]) -> bool {
+    if let Some(parent) = node.parent()
+        && parent.kind() == "export_statement" {
             return true;
         }
-    }
     node.children(&mut node.walk())
         .any(|c| c.kind() == "export")
 }
@@ -77,19 +76,18 @@ fn extract_function_calls(node: Node, source: &[u8]) -> Vec<String> {
 }
 
 fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
-    if node.kind() == "call_expression" {
-        if let Some(func_node) = node.child_by_field_name("function") {
+    if node.kind() == "call_expression"
+        && let Some(func_node) = node.child_by_field_name("function") {
             let func_name = get_text(func_node, source);
             let clean_name = func_name
                 .split('.')
-                .last()
+                .next_back()
                 .unwrap_or(&func_name)
                 .to_string();
             if !clean_name.is_empty() {
                 calls.push(clean_name);
             }
         }
-    }
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
@@ -201,21 +199,18 @@ fn parse_node(
                 // Check for require calls
                 let mut decl_cursor = child.walk();
                 for decl in child.children(&mut decl_cursor) {
-                     if decl.kind() == "variable_declarator" {
-                        if let Some(value) = decl.child_by_field_name("value") {
-                            if value.kind() == "call_expression" {
+                     if decl.kind() == "variable_declarator"
+                        && let Some(value) = decl.child_by_field_name("value")
+                            && value.kind() == "call_expression" {
                                 let func = value.child_by_field_name("function").map(|n| get_text(n, source)).unwrap_or_default();
-                                if func == "require" {
-                                     if let Some(args) = value.child_by_field_name("arguments") {
+                                if func == "require"
+                                     && let Some(args) = value.child_by_field_name("arguments") {
                                          let path = get_text(args, source).trim_matches(|c| c == '(' || c == ')' || c == '"' || c == '\'').to_string();
                                          if path.starts_with("./") || path.starts_with("../") {
                                              imports.push(format!("{}.js", path));
                                          }
                                      }
-                                }
                             }
-                        }
-                     }
                 }
                 
                 // Re-process for variables (artifacts)
@@ -372,8 +367,8 @@ fn parse_variables(node: Node, source: &[u8], parent_id: &str, imports: &mut Vec
             let id = format!("{}::{}", parent_id, name);
 
             // Check if the value is an Arrow Function
-            if let Some(val) = value_node {
-                if val.kind() == "arrow_function" {
+            if let Some(val) = value_node
+                && val.kind() == "arrow_function" {
                     let loc = count_lines(val);
                     let is_async_fn = is_async(val, source);
                     let parameters = extract_parameters(val, source);
@@ -403,7 +398,6 @@ fn parse_variables(node: Node, source: &[u8], parent_id: &str, imports: &mut Vec
                     });
                     continue;
                 }
-            }
 
             // Otherwise it's a variable/constant
             let artifact_type = if get_text(node, source).starts_with("const") {

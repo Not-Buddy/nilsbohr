@@ -67,14 +67,13 @@ fn extract_function_calls(node: Node, source: &[u8]) -> Vec<String> {
 }
 
 fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
-    if node.kind() == "call_expression" {
-        if let Some(func_node) = node.child_by_field_name("function") {
+    if node.kind() == "call_expression"
+        && let Some(func_node) = node.child_by_field_name("function") {
             let func_name = get_text(func_node, source);
             if !func_name.is_empty() {
                 calls.push(func_name);
             }
         }
-    }
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
