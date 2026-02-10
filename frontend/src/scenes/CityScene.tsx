@@ -1,7 +1,7 @@
 // CityScene.ts
 import { Container, Text, Graphics, Rectangle } from 'pixi.js'
 import type { Scene } from '../types/Types'
-import type { City, District, Building } from '../types/SeedTypes'
+import type { City, District, Building, WorldSeed, ProjectResponse } from '../types/SeedTypes'
 import { SceneManager } from '../engine/SceneManager'
 import { Player, type CollisionRect } from '../sprites/Player'
 import { Input } from '../engine/Inputs'
@@ -30,11 +30,21 @@ export class CityScene implements Scene {
   private enterPrompt?: Container
   private manager: SceneManager
   private spawnPosition?: { x: number; y: number }
+  private worldSeed?: WorldSeed | ProjectResponse
+  private worldEntryPosition?: { x: number; y: number }
 
-  constructor(city: City, manager: SceneManager, spawnPosition?: { x: number; y: number }) {
+  constructor(
+    city: City,
+    manager: SceneManager,
+    spawnPosition?: { x: number; y: number },
+    worldSeed?: WorldSeed | ProjectResponse,
+    worldEntryPosition?: { x: number; y: number }
+  ) {
     this.city = city
     this.manager = manager
     this.spawnPosition = spawnPosition
+    this.worldSeed = worldSeed
+    this.worldEntryPosition = worldEntryPosition
   }
 
   async mount() {
@@ -295,6 +305,15 @@ export class CityScene implements Scene {
       }
     } else {
       this.hideEnterPrompt()
+    }
+
+    // ESC to return to world
+    if (this.input.isJustPressed('Escape') && this.worldSeed && this.worldEntryPosition) {
+      // Lazy import to avoid circular dependency (WorldScene imports CityScene)
+      import('./WorldScene').then(({ WorldScene }) => {
+        this.manager.switch(new WorldScene(this.worldSeed!, this.manager, this.worldEntryPosition))
+      })
+      return
     }
 
     this.input.updatePrevious()

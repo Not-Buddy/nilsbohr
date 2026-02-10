@@ -30,13 +30,15 @@ export class WorldScene implements Scene {
   private chunkManager?: ChunkManager
   private enterPrompt?: Container  // UI prompt for city entry
   private minimap?: WorldMiniMap
+  private spawnPosition?: { x: number; y: number }
 
   // Support both old WorldSeed and new ProjectResponse formats
   private projectResponse?: ProjectResponse
   private legacySeed?: WorldSeed
 
-  constructor(seed: WorldSeed | ProjectResponse, manager: SceneManager) {
+  constructor(seed: WorldSeed | ProjectResponse, manager: SceneManager, spawnPosition?: { x: number; y: number }) {
     this.manager = manager
+    this.spawnPosition = spawnPosition
 
     // Detect seed format
     if ('project' in seed) {
@@ -44,6 +46,11 @@ export class WorldScene implements Scene {
     } else {
       this.legacySeed = seed
     }
+  }
+
+  /** Get the original seed to pass to child scenes */
+  private getSeed(): WorldSeed | ProjectResponse {
+    return (this.projectResponse ?? this.legacySeed)!
   }
 
   private getCities(): City[] {
@@ -137,7 +144,7 @@ export class WorldScene implements Scene {
     // --- 5. Player & Camera ---
     this.input = new Input()
 
-    const spawn = this.generator.getSpawnPosition()
+    const spawn = this.spawnPosition ?? this.generator.getSpawnPosition()
     this.player = new Player(spawn.x, spawn.y)
     await this.player.load()
     this.camera.container.addChild(this.player.sprite)
@@ -220,7 +227,8 @@ export class WorldScene implements Scene {
       // Check if J was just pressed to enter
       if (this.input.isJustPressed('KeyJ')) {
         this.transitioning = true
-        this.manager.switch(new CityScene(foundNearbyCity, this.manager))
+        const worldEntryPos = { x: this.player!.sprite.x, y: this.player!.sprite.y }
+        this.manager.switch(new CityScene(foundNearbyCity, this.manager, undefined, this.getSeed(), worldEntryPos))
         return
       }
     } else {
