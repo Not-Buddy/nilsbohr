@@ -25,7 +25,8 @@ fn get_text<'a>(node: Node<'a>, source: &'a [u8]) -> String {
     node.utf8_text(source).unwrap_or("").to_string()
 }
 
-fn is_exported(node: Node, source: &[u8]) -> bool {
+fn is_exported(node: Node, _source: &[u8]) -> bool {
+
     if let Some(parent) = node.parent() {
         if parent.kind() == "export_statement" {
             return true;

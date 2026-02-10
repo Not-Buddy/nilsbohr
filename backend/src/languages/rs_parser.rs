@@ -1,5 +1,6 @@
 use crate::models::{GameEntity, Parameter};
-use tracing::{debug, instrument};
+use tracing::instrument;
+
 use tree_sitter::{Node, Parser};
 
 /// Parse Rust code and return (entities, imports)
@@ -65,7 +66,8 @@ fn extract_return_type(node: Node, source: &[u8]) -> Option<String> {
         .map(|n| get_text(n, source).trim_start_matches("-> ").to_string())
 }
 
-fn extract_function_calls(node: Node, source: &[u8], parent_id: &str) -> Vec<String> {
+fn extract_function_calls(node: Node, source: &[u8], _parent_id: &str) -> Vec<String> {
+
     let mut calls = Vec::new();
     extract_calls_recursive(node, source, &mut calls);
     // Convert simple function names to potential IDs
@@ -327,7 +329,8 @@ fn parse_rust_node(
 }
 
 /// Calculate cyclomatic complexity based on control flow nodes
-fn calculate_complexity(node: Node, source: &[u8]) -> u32 {
+fn calculate_complexity(node: Node, _source: &[u8]) -> u32 {
+
     let mut complexity = 1; // Base complexity
     count_complexity_nodes(node, &mut complexity);
     complexity

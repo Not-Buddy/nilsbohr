@@ -378,7 +378,8 @@ fn parse_node(
 
             // --- FIELDS (Artifacts) ---
             "field_declaration" => {
-                let (visibility, _is_static, is_final) = extract_modifiers(child, source);
+                let (_visibility, _is_static, is_final) = extract_modifiers(child, source);
+
                 let datatype = child
                     .child_by_field_name("type")
                     .map(|n| get_text(n, source))

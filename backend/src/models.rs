@@ -56,6 +56,9 @@ pub struct Route {
     pub metadata: Option<serde_json::Value>,
 }
 
+ // RouteType represents relationships between entities.
+// Some variants are reserved for future analysis and routing logic.
+#[allow(dead_code)]
 #[derive(Serialize, Debug, Clone)]
 pub enum RouteType {
     FunctionCall,
@@ -64,6 +67,7 @@ pub enum RouteType {
     NetworkRequest,
     TypeReference,
 }
+
 
 // --- Function Parameter ---
 
