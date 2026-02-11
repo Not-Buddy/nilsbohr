@@ -101,25 +101,46 @@ fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
 }
 
 fn is_builtin(name: &str) -> bool {
+    // Check for common specific methods
     matches!(
         name,
-        "println"
-            | "print"
-            | "format"
-            | "vec"
-            | "Some"
-            | "None"
-            | "Ok"
-            | "Err"
-            | "unwrap"
-            | "expect"
-            | "clone"
-            | "to_string"
-            | "into"
-            | "from"
-            | "new"
-            | "default"
+        // --- Macros ---
+        "println" | "print" | "eprintln" | "eprint" | "format" | "write" | "writeln" |
+        "panic" | "todo" | "unimplemented" | "unreachable" |
+        "assert" | "assert_eq" | "assert_ne" | "debug_assert" | "debug_assert_eq" |
+        "dbg" | "vec" | "include_str" | "include_bytes" | "env" |
+
+        // --- Constructors & Conversion ---
+        "new" | "default" | "from" | "into" | "try_from" | "try_into" |
+        "clone" | "to_string" | "to_owned" | "as_ref" | "as_mut" | "deref" |
+        "as_str" | "as_bytes" | "into_inner" |
+
+        // --- Option / Result Patterns ---
+        "Some" | "None" | "Ok" | "Err" |
+        "unwrap" | "expect" | "unwrap_or" | "unwrap_or_else" | "unwrap_or_default" |
+        "is_some" | "is_none" | "is_ok" | "is_err" | "ok" | "err" | "map_err" |
+        "transpose" | "and_then" | "or_else" |
+
+        // --- Iterators & Collections ---
+        "iter" | "iter_mut" | "into_iter" | "collect" |
+        "map" | "filter" | "reduce" | "fold" | "for_each" | "inspect" |
+        "find" | "any" | "all" | "enumerate" | "zip" | "chain" | "take" | "skip" |
+        "flat_map" | "flatten" | "cycle" | "peekable" |
+        "push" | "pop" | "insert" | "remove" | "get" | "get_mut" |
+        "len" | "is_empty" | "contains" | "clear" | "sort" | "sort_by" |
+
+        // --- Strings ---
+        "trim" | "split" | "lines" | "chars" | "bytes" |
+        "replace" | "starts_with" | "ends_with" | "to_lowercase" | "to_uppercase" |
+
+        // --- Concurrency / Async ---
+        "lock" | "read" | "await" | "spawn" | "block_on"
     )
+    // Also filter standard types acting as constructors (e.g. Vec::new)
+    // Note: The parser logic usually splits '::', sending only 'new', but just in case:
+    || name.starts_with("std::")
+    || name.starts_with("core::")
+    || matches!(name, "Vec" | "String" | "Option" | "Result" | "Box" | "Rc" | "Arc" | "Mutex" | "RwLock")
 }
 
 #[instrument(skip(node, source, imports), level = "trace")]

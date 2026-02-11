@@ -95,37 +95,71 @@ fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
 }
 
 fn is_builtin(name: &str) -> bool {
+    // 1. Check for explicit namespace calls like "console.log" or "Math.max"
+    if name.starts_with("console.") || name.starts_with("Math.") || name.starts_with("JSON.") {
+        return true;
+    }
+
     matches!(
         name,
-        "console"
-            | "log"
-            | "error"
-            | "warn"
-            | "map"
-            | "filter"
-            | "reduce"
-            | "forEach"
-            | "push"
-            | "pop"
-            | "shift"
-            | "unshift"
-            | "slice"
-            | "splice"
-            | "JSON"
-            | "parse"
-            | "stringify"
-            | "parseInt"
-            | "parseFloat"
-            | "toString"
-            | "then"
-            | "catch"
-            | "finally"
-            | "Promise"
-            | "async"
-            | "await"
-            | "require" // CommonJS specific
-            | "module"
-            | "exports"
+        // --- Core Globals & Keywords ---
+        "window" | "document" | "global" | "globalThis" | "process" | 
+        "module" | "exports" | "require" | "__dirname" | "__filename" |
+        "this" | "super" | "arguments" | "undefined" | "null" | "true" | "false" | "Infinity" | "NaN" |
+
+        // --- Console & Debugging ---
+        "console" | "log" | "error" | "warn" | "info" | "debug" | "table" | "trace" | "dir" | "assert" |
+
+        // --- Control Flow & Async ---
+        "Promise" | "resolve" | "reject" | "then" | "catch" | "finally" | 
+        "all" | "race" | "allSettled" | "any" |
+        "async" | "await" | "fetch" |
+
+        // --- Timers ---
+        "setTimeout" | "clearTimeout" | "setInterval" | "clearInterval" | 
+        "setImmediate" | "clearImmediate" | "requestAnimationFrame" | "cancelAnimationFrame" |
+
+        // --- JSON ---
+        "JSON" | "parse" | "stringify" |
+
+        // --- Arrays & Iteration ---
+        "map" | "filter" | "reduce" | "reduceRight" | "forEach" | 
+        "find" | "findIndex" | "findLast" | "findLastIndex" |
+        "some" | "every" | "includes" | "indexOf" | "lastIndexOf" |
+        "push" | "pop" | "shift" | "unshift" | 
+        "slice" | "splice" | "concat" | "join" | 
+        "sort" | "reverse" | "fill" | "flat" | "flatMap" |
+        "entries" | "keys" | "values" | "from" | "isArray" | "of" |
+
+        // --- Strings ---
+        "split" | "replace" | "replaceAll" | "match" | "matchAll" | "search" |
+        "substring" | "substr" | "trim" | "trimStart" | "trimEnd" | 
+        "toLowerCase" | "toUpperCase" | "toLocaleLowerCase" | "toLocaleUpperCase" |
+        "charAt" | "charCodeAt" | "codePointAt" | 
+        "startsWith" | "endsWith" | "repeat" | "padStart" | "padEnd" |
+
+        // --- Objects ---
+        "Object" | "assign" | "create" | "freeze" | "seal" | "isFrozen" | "isSealed" |
+        "hasOwnProperty" | "isPrototypeOf" | "propertyIsEnumerable" |
+        "toString" | "valueOf" | "toLocaleString" |
+
+        // --- Math ---
+        "Math" | "min" | "max" | "floor" | "ceil" | "round" | "abs" | "random" | 
+        "sqrt" | "pow" | "sin" | "cos" | "tan" | "atan" | "exp" |
+
+        // --- Primitives & Constructors ---
+        "String" | "Number" | "Boolean" | "Symbol" | "BigInt" |
+        "Date" | "RegExp" | "Error" | "Function" | "Array" | 
+        "Map" | "Set" | "WeakMap" | "WeakSet" |
+
+        // --- Common DOM/Browser ---
+        "alert" | "prompt" | "confirm" | 
+        "addEventListener" | "removeEventListener" | "dispatchEvent" |
+        "localStorage" | "sessionStorage" | "navigator" | "location" | "history" |
+
+        // --- Global Functions ---
+        "parseInt" | "parseFloat" | "isNaN" | "isFinite" |
+        "encodeURI" | "decodeURI" | "encodeURIComponent" | "decodeURIComponent" | "eval"
     )
 }
 

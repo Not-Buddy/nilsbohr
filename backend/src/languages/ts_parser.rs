@@ -1,5 +1,5 @@
 use crate::models::{GameEntity, Parameter};
-use tracing::{debug, instrument, trace};
+use tracing::{debug, instrument};
 use tree_sitter::{Node, Parser};
 
 /// Parse TypeScript code (.ts, .tsx) and return (entities, imports)
@@ -110,34 +110,48 @@ fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
 }
 
 fn is_builtin(name: &str) -> bool {
+    // Check for explicit namespace calls like "console.log" or "Math.max"
+    if name.starts_with("console.") || name.starts_with("Math.") || name.starts_with("JSON.") {
+        return true;
+    }
+
     matches!(
         name,
-        "console"
-            | "log"
-            | "error"
-            | "warn"
-            | "map"
-            | "filter"
-            | "reduce"
-            | "forEach"
-            | "push"
-            | "pop"
-            | "shift"
-            | "unshift"
-            | "slice"
-            | "splice"
-            | "JSON"
-            | "parse"
-            | "stringify"
-            | "parseInt"
-            | "parseFloat"
-            | "toString"
-            | "then"
-            | "catch"
-            | "finally"
-            | "Promise"
-            | "async"
-            | "await"
+        // --- Console & Debugging ---
+        "console" | "log" | "error" | "warn" | "info" | "debug" | "table" | "trace" | "dir" |
+
+        // --- Array & Iteration ---
+        "map" | "filter" | "reduce" | "reduceRight" | "forEach" | 
+        "find" | "findIndex" | "findLast" | "findLastIndex" |
+        "some" | "every" | "includes" | "indexOf" | "lastIndexOf" |
+        "push" | "pop" | "shift" | "unshift" | 
+        "slice" | "splice" | "concat" | "join" | 
+        "sort" | "reverse" | "fill" | "flat" | "flatMap" |
+        "entries" | "keys" | "values" | "from" | "isArray" |
+
+        // --- Object & Class ---
+        "Object" | "assign" | "create" | "freeze" | "seal" | 
+        "hasOwnProperty" | "toString" | "valueOf" | "constructor" |
+        "bind" | "call" | "apply" |
+
+        // --- JSON & Serialization ---
+        "JSON" | "parse" | "stringify" |
+
+        // --- Async & Promises ---
+        "Promise" | "then" | "catch" | "finally" | 
+        "resolve" | "reject" | "all" | "allSettled" | "race" | "any" |
+        "async" | "await" | "fetch" |
+
+        // --- Math & Primitives ---
+        "Math" | "min" | "max" | "floor" | "ceil" | "round" | "abs" | "random" | "sqrt" | "pow" |
+        "parseInt" | "parseFloat" | "isNaN" | "isFinite" |
+        "String" | "Number" | "Boolean" | "Symbol" | "BigInt" | "RegExp" | "Date" | "Error" |
+
+        // --- Timers & Environment ---
+        "setTimeout" | "clearTimeout" | "setInterval" | "clearInterval" |
+        "require" | "module" | "exports" | "process" |
+        "window" | "document" | "global" | "globalThis" |
+        "alert" | "prompt" | "confirm" | "addEventListener" | "removeEventListener"
     )
 }
 
@@ -186,90 +200,56 @@ fn parse_node(
 
     for child in node.children(&mut cursor) {
         let kind = child.kind();
+        // Capture comments before processing the node
+        let comments = get_comments(child, source);
 
         match kind {
             // --- IMPORTS ---
             "import_statement" => {
                 if let Some(source_node) = child.child_by_field_name("source") {
-                    let import_path = get_text(source_node, source)
-                        .trim_matches(|c| c == '"' || c == '\'' || c == '`')
-                        .to_string();
-                    if import_path.starts_with("./") || import_path.starts_with("../") {
-                        imports.push(format!("{}.ts", import_path)); // Assume TS for now
+                    let text = get_text(source_node, source);
+                    // Robust quote removal
+                    let import_path = text.trim_matches(|c| c == '"' || c == '\'' || c == '`');
+                    if import_path.starts_with('.') {
+                        imports.push(format!("{}.ts", import_path));
                     }
                 }
             }
 
-            // --- BUILDINGS (Classes, Interfaces, Enums, Types) ---
-            "class_declaration" | "abstract_class_declaration" => {
+            // --- BUILDINGS ---
+            "class_declaration"
+            | "abstract_class_declaration"
+            | "interface_declaration"
+            | "enum_declaration" => {
                 let name = child
                     .child_by_field_name("name")
                     .map(|n| get_text(n, source))
-                    .unwrap_or_else(|| "AnonymousClass".into());
-
-                let id = format!("{}::{}", parent_id, name);
-                let is_public = is_exported(child, source);
-                let loc = count_lines(child);
-                let children = parse_node(child, source, &id, imports);
-
-                debug!(name = %name, kind = "Building", "Found class");
-                entities.push(GameEntity::Building {
-                    id,
-                    name,
-                    building_type: "class".to_string(),
-                    is_public,
-                    loc,
-                    imports: vec![],
-                    children,
-                    metadata: None,
-                });
-            }
-
-            "interface_declaration" => {
-                let name = child
-                    .child_by_field_name("name")
-                    .map(|n| get_text(n, source))
-                    .unwrap_or_else(|| "AnonymousInterface".into());
-
-                let id = format!("{}::{}", parent_id, name);
-                let is_public = is_exported(child, source);
-                let loc = count_lines(child);
-                let children = parse_node(child, source, &id, imports);
-
-                entities.push(GameEntity::Building {
-                    id,
-                    name,
-                    building_type: "interface".to_string(),
-                    is_public,
-                    loc,
-                    imports: vec![],
-                    children,
-                    metadata: None,
-                });
-            }
-
-            "enum_declaration" => {
-                let name = child
-                    .child_by_field_name("name")
-                    .map(|n| get_text(n, source))
-                    .unwrap_or_else(|| "AnonymousEnum".into());
+                    .unwrap_or_else(|| "Anonymous".into());
 
                 let id = format!("{}::{}", parent_id, name);
                 let is_public = is_exported(child, source);
                 let loc = count_lines(child);
 
-                // Enums in TS often contain values, we can parse them as children artifacts
-                let children = parse_node(child, source, &id, imports);
+                // Recurse: Enums usually parse their body, classes/interfaces parse theirs
+                let body_node = child.child_by_field_name("body").unwrap_or(child);
+                let children = parse_node(body_node, source, &id, imports);
 
+                let building_type = match kind {
+                    "interface_declaration" => "interface",
+                    "enum_declaration" => "enum",
+                    _ => "class",
+                };
+
+                debug!(name = %name, kind = "Building", "Found {}", building_type);
                 entities.push(GameEntity::Building {
                     id,
                     name,
-                    building_type: "enum".to_string(),
+                    building_type: building_type.to_string(),
                     is_public,
                     loc,
                     imports: vec![],
                     children,
-                    metadata: None,
+                    metadata: make_doc_metadata(comments), // Attach docs
                 });
             }
 
@@ -277,56 +257,66 @@ fn parse_node(
                 let name = child
                     .child_by_field_name("name")
                     .map(|n| get_text(n, source))
-                    .unwrap_or_else(|| "AnonymousType".into());
-
+                    .unwrap_or_else(|| "Type".into());
                 let id = format!("{}::{}", parent_id, name);
-                let is_public = is_exported(child, source);
-                let loc = count_lines(child);
 
                 entities.push(GameEntity::Building {
                     id,
                     name,
                     building_type: "type_alias".to_string(),
-                    is_public,
-                    loc,
+                    is_public: is_exported(child, source),
+                    loc: count_lines(child),
                     imports: vec![],
-                    children: vec![], // Types usually don't have "children" in the game sense
-                    metadata: None,
+                    children: vec![],
+                    metadata: make_doc_metadata(comments),
                 });
             }
 
-            // --- ROOMS (Functions, Methods) ---
-            "function_declaration" | "generator_function_declaration" => {
+            // --- ROOMS (Functions/Methods) ---
+            "function_declaration" | "generator_function_declaration" | "method_definition" => {
                 let name = child
                     .child_by_field_name("name")
                     .map(|n| get_text(n, source))
-                    .unwrap_or_else(|| "fn".into());
+                    .unwrap_or_else(|| "anonymous".into());
 
                 let id = format!("{}::{}", parent_id, name);
                 let loc = count_lines(child);
                 let is_async_fn = is_async(child, source);
                 let parameters = extract_parameters(child, source);
                 let return_type = extract_return_type(child, source);
-                let visibility = if is_exported(child, source) {
+                let complexity = calculate_complexity(child);
+
+                // Determine visibility
+                let visibility = if kind == "method_definition" {
+                    let text = get_text(child, source);
+                    if text.contains("private ") {
+                        "private"
+                    } else {
+                        "public"
+                    }
+                } else if is_exported(child, source) {
                     "public"
                 } else {
                     "private"
                 };
-                let complexity = calculate_complexity(child);
 
-                let calls = if let Some(body) = child.child_by_field_name("body") {
-                    extract_function_calls(body, source)
-                } else {
-                    vec![]
-                };
+                // Extract body info
+                let body = child.child_by_field_name("body");
+                let calls = body
+                    .map(|b| extract_function_calls(b, source))
+                    .unwrap_or_default();
+                let children = body
+                    .map(|b| parse_node(b, source, &id, imports))
+                    .unwrap_or_default();
 
-                let children = parse_function_body(child, source, &id, imports);
-
-                debug!(name = %name, kind = "Room", "Found function");
                 entities.push(GameEntity::Room {
                     id,
                     name,
-                    room_type: "function".to_string(),
+                    room_type: if kind == "method_definition" {
+                        "method".into()
+                    } else {
+                        "function".into()
+                    },
                     is_main: false,
                     is_async: is_async_fn,
                     visibility: visibility.to_string(),
@@ -336,74 +326,44 @@ fn parse_node(
                     return_type,
                     calls,
                     children,
-                    metadata: None,
+                    metadata: make_doc_metadata(comments),
                 });
             }
 
-            "method_definition" => {
-                let name = child
-                    .child_by_field_name("name")
-                    .map(|n| get_text(n, source))
-                    .unwrap_or_else(|| "method".into());
-
-                let id = format!("{}::{}", parent_id, name);
-                let loc = count_lines(child);
-                let is_async_fn = is_async(child, source);
-                let parameters = extract_parameters(child, source);
-                let return_type = extract_return_type(child, source);
-                let complexity = calculate_complexity(child);
-
-                let calls = if let Some(body) = child.child_by_field_name("body") {
-                    extract_function_calls(body, source)
-                } else {
-                    vec![]
-                };
-
-                let children = parse_function_body(child, source, &id, imports);
-
-                entities.push(GameEntity::Room {
-                    id,
-                    name,
-                    room_type: "method".to_string(),
-                    is_main: false,
-                    is_async: is_async_fn,
-                    visibility: "public".to_string(),
-                    complexity,
-                    loc,
-                    parameters,
-                    return_type,
-                    calls,
-                    children,
-                    metadata: None,
-                });
-            }
-
-            // --- ARTIFACTS (Variables, Arrow Functions, Enum Members) ---
+            // --- ARTIFACTS & ARROW FUNCTIONS ---
             "lexical_declaration" | "variable_declaration" => {
                 let mut decl_cursor = child.walk();
-                for decl in child.children(&mut decl_cursor) {
-                    if decl.kind() == "variable_declarator" {
-                        let name = decl
-                            .child_by_field_name("name")
-                            .map(|n| get_text(n, source))
-                            .unwrap_or_else(|| "var".into());
+                // OPTIMIZATION: Filter specifically for declarators.
+                // Previous code iterated keywords/punctuation which caused issues.
+                for decl in child
+                    .children(&mut decl_cursor)
+                    .filter(|c| c.kind() == "variable_declarator")
+                {
+                    let name = decl
+                        .child_by_field_name("name")
+                        .map(|n| get_text(n, source))
+                        .unwrap_or_else(|| "var".into());
 
-                        let value_node = decl.child_by_field_name("value");
-                        let id = format!("{}::{}", parent_id, name);
+                    let id = format!("{}::{}", parent_id, name);
+                    let value_node = decl.child_by_field_name("value");
 
-                        // Check if the value is an Arrow Function
-                        if let Some(val) = value_node
-                            && val.kind() == "arrow_function"
-                        {
+                    // 1. CHECK FOR ARROW FUNCTION (Treat as Room)
+                    if let Some(val) = value_node {
+                        if val.kind() == "arrow_function" {
                             let loc = count_lines(val);
                             let is_async_fn = is_async(val, source);
                             let parameters = extract_parameters(val, source);
                             let return_type = extract_return_type(val, source);
                             let complexity = calculate_complexity(val);
-                            let calls = extract_function_calls(val, source);
-                            let children = parse_function_body(val, source, &id, imports);
 
-                            debug!(name = %name, kind = "Room", "Found arrow function");
+                            let body = val.child_by_field_name("body");
+                            let calls = body
+                                .map(|b| extract_function_calls(b, source))
+                                .unwrap_or_default();
+                            let children = body
+                                .map(|b| parse_node(b, source, &id, imports))
+                                .unwrap_or_default();
+
                             entities.push(GameEntity::Room {
                                 id,
                                 name,
@@ -415,65 +375,72 @@ fn parse_node(
                                 } else {
                                     "private"
                                 }
-                                .to_string(),
+                                .into(),
                                 complexity,
                                 loc,
                                 parameters,
                                 return_type,
                                 calls,
                                 children,
-                                metadata: None,
+                                metadata: make_doc_metadata(comments.clone()), // Clone comments as they apply to the decl line
                             });
                             continue;
                         }
-
-                        // Otherwise it's a variable/constant
-                        let artifact_type = if get_text(child, source).starts_with("const") {
-                            "constant"
-                        } else {
-                            "variable"
-                        };
-
-                        let datatype = decl
-                            .child_by_field_name("type")
-                            .map(|t| get_text(t, source).trim_start_matches(": ").to_string())
-                            .unwrap_or_else(|| "any".to_string());
-
-                        let value_hint = value_node.map(|v| {
-                            let val = get_text(v, source);
-                            if val.len() > 30 {
-                                let truncated = val.chars().take(27).collect::<String>();
-                                format!("{}...", truncated)
-                            } else {
-                                val
-                            }
-                        });
-
-                        trace!(name = %name, kind = "Artifact", "Found variable");
-                        entities.push(GameEntity::Artifact {
-                            id,
-                            name,
-                            artifact_type: artifact_type.to_string(),
-                            datatype,
-                            is_mutable: !get_text(child, source).starts_with("const"),
-                            value_hint,
-                            metadata: None,
-                        });
                     }
+
+                    // 2. STANDARD VARIABLE (Treat as Artifact)
+                    let is_const = get_text(child, source).starts_with("const");
+                    let datatype = decl
+                        .child_by_field_name("type")
+                        .map(|t| {
+                            get_text(t, source)
+                                .trim_start_matches(":")
+                                .trim()
+                                .to_string()
+                        })
+                        .unwrap_or_else(|| "inferred".to_string());
+
+                    let value_hint = value_node.map(|v| {
+                        let text = get_text(v, source);
+                        if text.len() > 40 {
+                            format!("{}...", &text[..37])
+                        } else {
+                            text
+                        }
+                    });
+
+                    entities.push(GameEntity::Artifact {
+                        id,
+                        name,
+                        artifact_type: if is_const {
+                            "constant".into()
+                        } else {
+                            "variable".into()
+                        },
+                        datatype,
+                        is_mutable: !is_const,
+                        value_hint,
+                        metadata: make_doc_metadata(comments.clone()),
+                    });
                 }
             }
 
             "public_field_definition" | "field_definition" => {
                 let name = child
-                    .child_by_field_name("property")
-                    .or_else(|| child.child_by_field_name("name"))
+                    .child_by_field_name("name")
+                    .or(child.child_by_field_name("property"))
                     .map(|n| get_text(n, source))
                     .unwrap_or_else(|| "field".into());
 
                 let id = format!("{}::{}", parent_id, name);
                 let datatype = child
                     .child_by_field_name("type")
-                    .map(|t| get_text(t, source).trim_start_matches(": ").to_string())
+                    .map(|t| {
+                        get_text(t, source)
+                            .trim_start_matches(":")
+                            .trim()
+                            .to_string()
+                    })
                     .unwrap_or_else(|| "any".to_string());
 
                 entities.push(GameEntity::Artifact {
@@ -483,7 +450,7 @@ fn parse_node(
                     datatype,
                     is_mutable: true,
                     value_hint: None,
-                    metadata: None,
+                    metadata: make_doc_metadata(comments),
                 });
             }
 
@@ -492,7 +459,6 @@ fn parse_node(
                     .child_by_field_name("name")
                     .map(|n| get_text(n, source))
                     .unwrap_or_else(|| "member".into());
-
                 let id = format!("{}::{}", parent_id, name);
 
                 entities.push(GameEntity::Artifact {
@@ -502,13 +468,25 @@ fn parse_node(
                     datatype: "enum".to_string(),
                     is_mutable: false,
                     value_hint: None,
-                    metadata: None,
+                    metadata: make_doc_metadata(comments),
                 });
             }
 
-            // --- RECURSION FALLBACK ---
+            // --- RECURSION ---
+            // Only recurse into blocks that aren't definitions we already handled above
+            "statement_block" | "export_statement" => {
+                entities.extend(parse_node(child, source, parent_id, imports));
+            }
             _ => {
-                if child.child_count() > 0 {
+                // Careful recursion: don't re-scan nodes we already processed explicitly
+                if !matches!(
+                    kind,
+                    "class_declaration"
+                        | "function_declaration"
+                        | "interface_declaration"
+                        | "lexical_declaration"
+                ) && child.child_count() > 0
+                {
                     entities.extend(parse_node(child, source, parent_id, imports));
                 }
             }
@@ -517,17 +495,51 @@ fn parse_node(
     entities
 }
 
-fn parse_function_body(
-    node: Node,
-    source: &[u8],
-    parent_id: &str,
-    imports: &mut Vec<String>,
-) -> Vec<GameEntity> {
-    let mut contents = Vec::new();
+/// Helper to convert optional comment string into the expected Metadata HashMap
+fn make_doc_metadata(
+    comments: Option<String>,
+) -> Option<std::collections::HashMap<String, String>> {
+    comments.map(|c| {
+        let mut map = std::collections::HashMap::new();
+        map.insert("documentation".to_string(), c);
+        map
+    })
+}
 
-    if let Some(body) = node.child_by_field_name("body") {
-        contents.extend(parse_node(body, source, parent_id, imports));
+/// Extract JSDoc or single-line comments immediately preceding the node
+fn get_comments(node: Node, source: &[u8]) -> Option<String> {
+    let mut comments = Vec::new();
+    let mut prev = node.prev_sibling();
+
+    while let Some(p) = prev {
+        if p.kind() == "comment" {
+            let text = get_text(p, source);
+            // Clean up comment syntax (/**, *, //)
+            let clean = text
+                .lines()
+                .map(|l| {
+                    l.trim()
+                        .trim_start_matches("/**")
+                        .trim_start_matches("/*")
+                        .trim_start_matches("*/")
+                        .trim_start_matches('*')
+                        .trim_start_matches("//")
+                        .trim()
+                })
+                .filter(|l| !l.is_empty())
+                .collect::<Vec<_>>()
+                .join(" ");
+            comments.insert(0, clean);
+            prev = p.prev_sibling();
+        } else {
+            // Stop if we hit non-whitespace/non-comment
+            break;
+        }
     }
 
-    contents
+    if comments.is_empty() {
+        None
+    } else {
+        Some(comments.join(" "))
+    }
 }
