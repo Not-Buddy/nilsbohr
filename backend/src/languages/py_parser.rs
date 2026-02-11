@@ -127,52 +127,54 @@ fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
 fn is_builtin(name: &str) -> bool {
     matches!(
         name,
-        "print"
-            | "len"
-            | "range"
-            | "str"
-            | "int"
-            | "float"
-            | "list"
-            | "dict"
-            | "set"
-            | "tuple"
-            | "bool"
-            | "type"
-            | "isinstance"
-            | "issubclass"
-            | "hasattr"
-            | "getattr"
-            | "setattr"
-            | "delattr"
-            | "open"
-            | "input"
-            | "abs"
-            | "max"
-            | "min"
-            | "sum"
-            | "sorted"
-            | "reversed"
-            | "enumerate"
-            | "zip"
-            | "map"
-            | "filter"
-            | "any"
-            | "all"
-            | "next"
-            | "iter"
-            | "super"
-            | "object"
-            | "staticmethod"
-            | "classmethod"
-            | "property"
-            | "Exception"
-            | "ValueError"
-            | "TypeError"
-            | "KeyError"
-            | "IndexError"
-            | "AttributeError"
-            | "RuntimeError"
+        // --- IO & Inspection ---
+        "print" | "input" | "open" | "help" | "dir" | "vars" | "globals" | "locals" |
+        "id" | "hash" | "type" | "object" | "len" | "repr" | "ascii" | "format" | "breakpoint" |
+
+        // --- Types & Constructors ---
+        "bool" | "int" | "float" | "complex" | "str" | "bytes" | "bytearray" |
+        "list" | "tuple" | "set" | "frozenset" | "dict" | "range" | "slice" |
+        "memoryview" | "super" |
+
+        // --- Math & Numbers ---
+        "abs" | "min" | "max" | "sum" | "round" | "pow" | "divmod" |
+        "bin" | "hex" | "oct" | "ord" | "chr" |
+
+        // --- Iteration & Functional ---
+        "enumerate" | "zip" | "map" | "filter" | "reversed" | "sorted" |
+        "all" | "any" | "next" | "iter" | "aiter" | "anext" |
+
+        // --- Metaprogramming & Execution ---
+        "eval" | "exec" | "compile" | "__import__" |
+        "isinstance" | "issubclass" | "hasattr" | "getattr" | "setattr" | "delattr" |
+        "callable" |
+
+        // --- Decorators & Descriptors ---
+        "staticmethod" | "classmethod" | "property" |
+
+        // --- Common Exceptions (Base) ---
+        "BaseException" | "Exception" | "ArithmeticError" | "BufferError" |
+        "LookupError" | "AssertionError" | "AttributeError" | "EOFError" |
+        "FloatingPointError" | "GeneratorExit" | "ImportError" |
+        "ModuleNotFoundError" | "IndexError" | "KeyError" | "KeyboardInterrupt" |
+        "MemoryError" | "NameError" | "NotImplementedError" | "OSError" |
+        "OverflowError" | "RecursionError" | "ReferenceError" | "RuntimeError" |
+        "StopIteration" | "StopAsyncIteration" | "SyntaxError" | "IndentationError" |
+        "TabError" | "SystemError" | "SystemExit" | "TypeError" |
+        "UnboundLocalError" | "UnicodeError" | "ValueError" | "ZeroDivisionError" |
+        
+        // --- OS & IO Exceptions ---
+        "EnvironmentError" | "IOError" | "WindowsError" | "BlockingIOError" |
+        "ChildProcessError" | "ConnectionError" | "BrokenPipeError" |
+        "ConnectionAbortedError" | "ConnectionRefusedError" | "ConnectionResetError" |
+        "FileExistsError" | "FileNotFoundError" | "InterruptedError" |
+        "IsADirectoryError" | "NotADirectoryError" | "PermissionError" |
+        "ProcessLookupError" | "TimeoutError" |
+
+        // --- Warnings ---
+        "Warning" | "UserWarning" | "DeprecationWarning" | "PendingDeprecationWarning" |
+        "SyntaxWarning" | "RuntimeWarning" | "FutureWarning" | "ImportWarning" |
+        "UnicodeWarning" | "BytesWarning" | "ResourceWarning"
     )
 }
 
