@@ -400,6 +400,12 @@ fn reconstruct_hierarchy(files: Vec<ParsedFile>) -> Vec<GameEntity> {
     let mut root = DirNode::new("root".to_string(), "".to_string());
 
     for file in files {
+        // Get the parent directory path
+        let path_str = file.path.to_string_lossy();
+        let _relative_path = path_str.as_ref();
+
+
+        // Extract parent directory from the file's ID
         if let GameEntity::Building { id, .. } = &file.entity {
             let parts: Vec<&str> = id.split('/').collect();
 
