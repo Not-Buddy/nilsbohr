@@ -43,7 +43,7 @@ impl SymbolTable {
                 // ID format is usually "path/to/file::Symbol"
                 if let Some(parent_path) = id.rsplit("::").nth(1) {
                     // e.g. parent_path = "src/utils.rs" -> file_name = "utils.rs"
-                    if let Some(file_name) = parent_path.split('/').last() {
+                    if let Some(file_name) = parent_path.split('/').next_back() {
                         let qualified = format!("{}::{}", file_name, name);
                         self.symbols.insert(qualified, id.clone());
                     }

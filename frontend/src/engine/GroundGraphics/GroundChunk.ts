@@ -1,18 +1,31 @@
 import { Container, Texture } from 'pixi.js'
 import { CompositeTilemap } from '@pixi/tilemap'
-import type { GroundOptions } from './GroundTiles'
 
 export class GroundChunk {
-    public container = new Container();
-    private tilemap = new CompositeTilemap();
+    public container: Container;
+    private tilemap: CompositeTilemap;
+    private chunkX: number;
+    private chunkY: number;
+    private chunkSize: number;
+    private tileSize: number;
+    private getTileForPosition: (x: number, y: number) => Texture;
 
     constructor(
-        private chunkX: number,
-        private chunkY: number,
-        private chunkSize: number,
-        private tileSize: number,
-        private getTileForPosition: (x: number, y: number) => Texture
+        chunkX: number,
+        chunkY: number,
+        chunkSize: number,
+        tileSize: number,
+        getTileForPosition: (x: number, y: number) => Texture
     ) {
+        this.chunkX = chunkX;
+        this.chunkY = chunkY;
+        this.chunkSize = chunkSize;
+        this.tileSize = tileSize;
+        this.getTileForPosition = getTileForPosition;
+        
+        this.container = new Container();
+        this.tilemap = new CompositeTilemap();
+        
         this.container.addChild(this.tilemap)
         this.generate()
     }

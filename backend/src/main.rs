@@ -1,10 +1,5 @@
-#![allow(clippy::collapsible_if)]
-#![allow(clippy::double_ended_iterator_last)]
-#![allow(clippy::manual_clamp)]
-#![allow(clippy::only_used_in_recursion)]
 
 use axum::{response::IntoResponse, routing::get, Router, routing::post};
-use axum::{Router, response::IntoResponse, routing::get, routing::post};
 use std::env;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tracing::info;

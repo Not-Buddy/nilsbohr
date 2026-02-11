@@ -81,10 +81,10 @@ fn parse_single_file(path: &Path, relative_path: &str, root_path: &Path) -> Opti
     // However, `file_entity` created above acts as a wrapper for the file itself.
     // If we want to attach metadata to the file entity:
     let mut file_entity = file_entity;
-    if let Some(metadata) = git_metadata {
-        if let GameEntity::Building { metadata: m, .. } = &mut file_entity {
-            *m = Some(metadata);
-        }
+    if let Some(metadata) = git_metadata
+        && let GameEntity::Building { metadata: m, .. } = &mut file_entity
+    {
+        *m = Some(metadata);
     }
 
     Some(ParsedFile {
@@ -379,17 +379,17 @@ impl DirNode {
         }
     }
 
-    fn to_entity(self) -> GameEntity {
+    fn to_entity(&self) -> GameEntity {
         let mut children = Vec::new();
-        children.extend(self.files);
-        for (_, subdir) in self.subdirs {
+        children.extend(self.files.clone());
+        for subdir in self.subdirs.values() {
             children.push(subdir.to_entity());
         }
 
         GameEntity::District {
             id: format!("district_{}", self.path.replace('/', "_")),
-            name: self.name,
-            path: self.path,
+            name: self.name.clone(),
+            path: self.path.clone(),
             children,
         }
     }
@@ -400,11 +400,6 @@ fn reconstruct_hierarchy(files: Vec<ParsedFile>) -> Vec<GameEntity> {
     let mut root = DirNode::new("root".to_string(), "".to_string());
 
     for file in files {
-        // Get the parent directory path
-        let path_str = file.path.to_string_lossy();
-        let _relative_path = path_str.as_ref();
-
-
         // Extract parent directory from the file's ID
         if let GameEntity::Building { id, .. } = &file.entity {
             let parts: Vec<&str> = id.split('/').collect();

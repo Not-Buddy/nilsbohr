@@ -23,11 +23,11 @@ fn get_text<'a>(node: Node<'a>, source: &'a [u8]) -> String {
 }
 
 fn is_exported(node: Node, _source: &[u8]) -> bool {
-
-    if let Some(parent) = node.parent() {
-        if parent.kind() == "export_statement" {
-            return true;
-        }
+    if let Some(parent) = node.parent()
+        && parent.kind() == "export_statement"
+    {
+        return true;
+    }
     if let Some(parent) = node.parent()
         && parent.kind() == "export_statement"
     {
@@ -353,44 +353,44 @@ fn parse_node(
                     let value_node = decl.child_by_field_name("value");
 
                     // 1. CHECK FOR ARROW FUNCTION (Treat as Room)
-                    if let Some(val) = value_node {
-                        if val.kind() == "arrow_function" {
-                            let loc = count_lines(val);
-                            let is_async_fn = is_async(val, source);
-                            let parameters = extract_parameters(val, source);
-                            let return_type = extract_return_type(val, source);
-                            let complexity = calculate_complexity(val);
+                    if let Some(val) = value_node
+                        && val.kind() == "arrow_function"
+                    {
+                        let loc = count_lines(val);
+                        let is_async_fn = is_async(val, source);
+                        let parameters = extract_parameters(val, source);
+                        let return_type = extract_return_type(val, source);
+                        let complexity = calculate_complexity(val);
 
-                            let body = val.child_by_field_name("body");
-                            let calls = body
-                                .map(|b| extract_function_calls(b, source))
-                                .unwrap_or_default();
-                            let children = body
-                                .map(|b| parse_node(b, source, &id, imports))
-                                .unwrap_or_default();
+                        let body = val.child_by_field_name("body");
+                        let calls = body
+                            .map(|b| extract_function_calls(b, source))
+                            .unwrap_or_default();
+                        let children = body
+                            .map(|b| parse_node(b, source, &id, imports))
+                            .unwrap_or_default();
 
-                            entities.push(GameEntity::Room {
-                                id,
-                                name,
-                                room_type: "arrow_function".to_string(),
-                                is_main: false,
-                                is_async: is_async_fn,
-                                visibility: if is_exported(child, source) {
-                                    "public"
-                                } else {
-                                    "private"
-                                }
-                                .into(),
-                                complexity,
-                                loc,
-                                parameters,
-                                return_type,
-                                calls,
-                                children,
-                                metadata: make_doc_metadata(comments.clone()), // Clone comments as they apply to the decl line
-                            });
-                            continue;
-                        }
+                        entities.push(GameEntity::Room {
+                            id,
+                            name,
+                            room_type: "arrow_function".to_string(),
+                            is_main: false,
+                            is_async: is_async_fn,
+                            visibility: if is_exported(child, source) {
+                                "public"
+                            } else {
+                                "private"
+                            }
+                            .into(),
+                            complexity,
+                            loc,
+                            parameters,
+                            return_type,
+                            calls,
+                            children,
+                            metadata: make_doc_metadata(comments.clone()), // Clone comments as they apply to the decl line
+                        });
+                        continue;
                     }
 
                     // 2. STANDARD VARIABLE (Treat as Artifact)

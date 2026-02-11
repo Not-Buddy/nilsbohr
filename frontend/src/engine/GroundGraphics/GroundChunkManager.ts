@@ -2,15 +2,27 @@ import { Container } from 'pixi.js'
 import { GroundChunk } from './GroundChunk'
 
 export class GroundChunkManager {
-  private chunks = new Map<string, GroundChunk>()
+  private chunks: Map<string, GroundChunk>;
+  private parent: Container;
+  private chunkSize: number;
+  private tileSize: number;
+  private loadRadius: number;
+  private getTileForPosition: (x: number, y: number) => any;
 
   constructor(
-    private parent: Container,
-    private chunkSize: number,
-    private tileSize: number,
-    private loadRadius: number,
-    private getTileForPosition: (x: number, y: number) => any
-  ) {}
+    parent: Container,
+    chunkSize: number,
+    tileSize: number,
+    loadRadius: number,
+    getTileForPosition: (x: number, y: number) => any
+  ) {
+    this.parent = parent;
+    this.chunkSize = chunkSize;
+    this.tileSize = tileSize;
+    this.loadRadius = loadRadius;
+    this.getTileForPosition = getTileForPosition;
+    this.chunks = new Map<string, GroundChunk>();
+  }
 
   private getChunkId(x: number, y: number) {
     return `${x}_${y}`

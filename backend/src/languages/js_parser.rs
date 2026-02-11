@@ -23,11 +23,11 @@ fn get_text<'a>(node: Node<'a>, source: &'a [u8]) -> String {
 }
 
 fn is_exported(node: Node, _source: &[u8]) -> bool {
-
-    if let Some(parent) = node.parent() {
-        if parent.kind() == "export_statement" {
-            return true;
-        }
+    if let Some(parent) = node.parent()
+        && parent.kind() == "export_statement"
+    {
+        return true;
+    }
     if let Some(parent) = node.parent()
         && parent.kind() == "export_statement"
     {
