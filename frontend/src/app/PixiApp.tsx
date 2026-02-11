@@ -8,6 +8,7 @@ import { SceneManager } from '../engine/SceneManager';
 import { WorldScene } from '../scenes/WorldScene';
 import type { WorldSeed } from '../types/SeedTypes';
 import type { RootResponse } from '../types/SeedTypes';
+import '@pixi/tilemap';
 
 import SampleData from '../assets/sample.json';
 extend({ Container });

@@ -9,10 +9,16 @@ import { Camera } from '../engine/Camera'
 import { WorldGenerator } from '../engine/WorldGenerator'
 import { ChunkManager } from '../engine/ChunkManager'
 import { WorldMiniMap } from '../engine/WorldMiniMap'
+import { GroundTiles } from '../engine/GroundGraphics/GroundTiles'
+import { GroundChunkManager } from '../engine/GroundGraphics/GroundChunkManager'
+
 
 import type { Scene } from '../types/Types'
 import type { City, ProjectResponse, WorldSeed } from '../types/SeedTypes'
 import type { SceneManager } from '../engine/SceneManager'
+import GroundMap from '../assets/WorldAssets/Environ/overworld_floor.png'
+
+console.log(GroundMap);
 
 
 export class WorldScene implements Scene {
@@ -28,13 +34,20 @@ export class WorldScene implements Scene {
   // New: Procedural generation systems
   private generator?: WorldGenerator
   private chunkManager?: ChunkManager
+  private groundChunkManager?: GroundChunkManager
   private enterPrompt?: Container  // UI prompt for city entry
   private minimap?: WorldMiniMap
+  private ground?: GroundTiles
   private spawnPosition?: { x: number; y: number }
 
   // Support both old WorldSeed and new ProjectResponse formats
   private projectResponse?: ProjectResponse
   private legacySeed?: WorldSeed
+
+  private groundLayer = new Container()
+  private cityLayer = new Container()
+  private entityLayer = new Container()
+
 
   constructor(seed: WorldSeed | ProjectResponse, manager: SceneManager, spawnPosition?: { x: number; y: number }) {
     this.manager = manager
@@ -66,6 +79,9 @@ export class WorldScene implements Scene {
 
     // Add camera container to scene
     this.container.addChild(this.camera.container)
+    this.camera.container.addChild(this.groundLayer)
+    this.camera.container.addChild(this.cityLayer)
+    this.camera.container.addChild(this.entityLayer)
 
     // --- 1. Setup World Generator ---
     if (this.projectResponse) {
@@ -107,29 +123,9 @@ export class WorldScene implements Scene {
     const worldW = layoutBounds.width + (padding * 2)
     const worldH = layoutBounds.height + (padding * 2)
 
-    // --- 3. Generate Procedural Background ---
-    const background = new Graphics()
-
-    // Base space/dark background covering the calculated world size
-    background.rect(worldX, worldY, worldW, worldH).fill(0x0a0a0a)
-
-    // Add subtle grid for depth
-    background.setStrokeStyle({ width: 1, color: 0x1a1a1a, alpha: 0.3 })
-    const gridSize = 200
-
-    // Draw vertical lines
-    for (let x = worldX; x <= worldX + worldW; x += gridSize) {
-      background.moveTo(x, worldY).lineTo(x, worldY + worldH).stroke()
-    }
-    // Draw horizontal lines
-    for (let y = worldY; y <= worldY + worldH; y += gridSize) {
-      background.moveTo(worldX, y).lineTo(worldX + worldW, y).stroke()
-    }
-
-    this.camera.container.addChild(background)
 
     // --- 4. Setup Chunk Manager ---
-    this.chunkManager = new ChunkManager(this.camera.container, {
+    this.chunkManager = new ChunkManager(this.cityLayer, {
       chunkSize: 1000,
       loadRadius: 2, // Load 2 chunks out from player
       unloadRadius: 3,
@@ -147,13 +143,31 @@ export class WorldScene implements Scene {
     const spawn = this.spawnPosition ?? this.generator.getSpawnPosition()
     this.player = new Player(spawn.x, spawn.y)
     await this.player.load()
-    this.camera.container.addChild(this.player.sprite)
+    this.entityLayer.addChild(this.player.sprite)
 
     // Setup camera with the new dynamic bounds
     this.camera.setBounds(new Rectangle(worldX, worldY, worldW, worldH))
     this.camera.follow(this.player.sprite)
     this.camera.snapToTarget()
 
+    // The World Background Texture
+    this.ground = new GroundTiles({
+      worldX,
+      worldY,
+      worldWidth: worldW,
+      worldHeight: worldH,
+      tileSize: 16,
+      tilesetPath: GroundMap
+    })
+
+    await this.ground.load()
+    this.groundChunkManager = new GroundChunkManager(
+      this.groundLayer,
+      512,              // chunkSize
+      16,               // tileSize
+      2,                // load radius
+      (x, y) => this.ground!.getTileForPosition(x, y)
+    )
     // --- 6. World Minimap ---
     const worldRect = new Rectangle(worldX, worldY, worldW, worldH)
     this.minimap = new WorldMiniMap({
@@ -179,11 +193,13 @@ export class WorldScene implements Scene {
   update(dt: number) {
     if (!this.player || !this.input || this.transitioning) return
 
-    this.player.update(dt, this.input)
     this.camera.update(dt)
-
+    
     // Update chunk loading based on player position
     this.chunkManager?.update(this.player.sprite.x, this.player.sprite.y)
+    this.groundChunkManager?.update(this.player.sprite.x, this.player.sprite.y)
+    this.player.update(dt, this.input)
+
 
     // Update minimap player position
     this.minimap?.updatePlayerPosition(this.player.sprite.x, this.player.sprite.y)

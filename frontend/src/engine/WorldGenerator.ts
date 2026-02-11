@@ -153,11 +153,23 @@ export class WorldGenerator {
         }
 
         const padding = 500
+
+        let width = maxX - minX + padding * 2
+        let height = maxY - minY + padding * 2
+        let centerX = (minX + maxX) / 2
+        let centerY = (minY + maxY) / 2
+
+        const MIN_WORLD_WIDTH = 3000
+        const MIN_WORLD_HEIGHT = 3000
+
+        width = Math.max(width, MIN_WORLD_WIDTH)
+        height = Math.max(height, MIN_WORLD_HEIGHT)
+
         this.worldBounds = {
-            width: maxX - minX + padding * 2,
-            height: maxY - minY + padding * 2,
-            centerX: (minX + maxX) / 2,
-            centerY: (minY + maxY) / 2,
+            width,
+            height,
+            centerX,
+            centerY,
         }
     }
 

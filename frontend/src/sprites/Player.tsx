@@ -18,7 +18,7 @@ import walkRightPng from '../assets/SpriteMovement/Walking Right/Walking Right.p
 import walkRightJson from '../assets/SpriteMovement/Walking Right/Walking Right.json'
 
 // ---- CONSTANTS ----
-const MOVE_SPEED = 300
+const MOVE_SPEED = 400
 const ANIMATION_SPEED = 0.15
 const SPRITE_SCALE = 0.5
 
