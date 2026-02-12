@@ -12,6 +12,14 @@ export interface GroundOptions {
   island?: boolean
 }
 
+type TerrainType = 'grass' | 'sand' | 'stone' | 'water';
+
+
+interface AutoTileSet {
+  tiles: Record<string, Texture>
+}
+
+
 export class GroundTiles {
   public container = new Container()
 
@@ -19,13 +27,11 @@ export class GroundTiles {
   private tileSize: number
   private options: GroundOptions
   private seed: number
+  private grass!: AutoTileSet
+  private sand!: AutoTileSet
+  private stone!: AutoTileSet
+  private water!: AutoTileSet
 
-  private grassTiles: Texture[] = []
-  private sandTiles: Texture[] = []
-  private dirtTiles: Texture[] = []
-  private rockTiles: Texture[] = []
-  // private waterTiles: Texture[] = []
-  private mountainTile!: Texture
 
   constructor(options: GroundOptions) {
     this.options = options
@@ -50,39 +56,64 @@ export class GroundTiles {
           this.tileSize,
           this.tileSize
         )
-      })
+      });
+    
+    // All of these are (col, row) *****
+    this.grass = {
+      tiles:{
+        'main' : getTile(2, 10),
+        'top' : getTile(2, 9),
+        'bottom' : getTile(2, 5),
+        'left' : getTile(4, 7),
+        'right' : getTile(0, 7),
+        'topleft' : getTile(4, 8),
+        'topright' : getTile(0, 8),
+        'bottomleft' : getTile(4, 6),
+        'bottomright' : getTile(0, 6),
+      }
+    }
 
-    // 🔧 Adjust these (col,row) pairs to match YOUR sheet
+    this.sand = {
+      tiles:{
+        'main' : getTile(7, 18),
+        'top' : getTile(7, 17),
+        'bottom' : getTile(7, 21),
+        'left' : getTile(5, 19),
+        'right' : getTile(9, 19),
+        'topleft' : getTile(5, 18),
+        'topright' : getTile(9, 18),
+        'bottomleft' : getTile(5, 20),
+        'bottomright' : getTile(9, 20),
+      }
+    }
 
-    this.grassTiles = [
-      getTile(2, 10),
-      getTile(3, 10),
-      getTile(2, 11),
-      getTile(3, 11),
-    ]
+    this.stone = {
+      tiles:{
+        'main' : getTile(7, 10),
+        'top' : getTile(7, 9),
+        'bottom' : getTile(7, 5),
+        'left' : getTile(9, 2),
+        'right' : getTile(5, 2),
+        'topleft' : getTile(8, 4),
+        'topright' : getTile(6, 3),
+        'bottomleft' : getTile(8, 1),
+        'bottomright' : getTile(6, 1),
+      }
+    }
 
-    this.sandTiles = [
-      getTile(6, 14),
-      getTile(7, 14),
-      getTile(8, 14),
-      getTile(7, 15),
-    ]
-
-    this.dirtTiles = [
-      getTile(11, 10),
-      getTile(12, 10),
-      getTile(13, 10),
-      getTile(12, 11),
-    ]
-
-    this.rockTiles = [
-      getTile(6, 10),
-      getTile(7, 10),
-      getTile(8, 10),
-      getTile(7, 11),
-    ]
-
-    this.mountainTile = getTile(10, 0)
+    this.water = {
+      tiles:{
+        'main' : getTile(22, 7),
+        'top' : getTile(22, 5),
+        'bottom' : getTile(22, 9),
+        'left' : getTile(20, 7),
+        'right' : getTile(24, 7),
+        'topleft' : getTile(21, 5),
+        'topright' : getTile(23, 5),
+        'bottomleft' : getTile(21, 9),
+        'bottomright' : getTile(23, 9),
+      }
+    }
 
     const cols = Math.floor(baseTexture.width / this.tileSize)
     const rows = Math.floor(baseTexture.height / this.tileSize)
@@ -90,11 +121,7 @@ export class GroundTiles {
     console.log("Detected grid:", cols, "cols x", rows, "rows")
   }
 
-  // =========================================================
-  // WORLD GENERATION
-  // =========================================================
-
-  public getTileForPosition(x: number, y: number): Texture {
+  private getTerrainType(x: number, y: number): TerrainType {
     let height = this.getHeight(x, y)
 
     if (this.options.island) {
@@ -103,27 +130,49 @@ export class GroundTiles {
 
     const moisture = this.getMoisture(x, y)
 
-/*     if (height < 0.4) {
-      return this.pickStable(this.waterTiles, x, y)
-    }
- */
-    if (height < 0.45) {
-      return this.pickStable(this.grassTiles, x, y)
+    if (height < 0.25) return 'water'
+    if (height < 0.45) return 'sand'
+    if (height > 0.75) return 'stone'
+
+    return 'grass'
+  }
+
+  public getTileForPosition(x: number, y: number): Texture {
+    const size = this.tileSize
+
+    const type = this.getTerrainType(x, y)
+
+    const top    = this.getTerrainType(x, y - size)
+    const bottom = this.getTerrainType(x, y + size)
+    const left   = this.getTerrainType(x - size, y)
+    const right  = this.getTerrainType(x + size, y)
+
+    const set = this.getTileSet(type).tiles
+
+    const sameTop = top === type
+    const sameBottom = bottom === type
+    const sameLeft = left === type
+    const sameRight = right === type
+
+    // --- Full surround ---
+    if (sameTop && sameBottom && sameLeft && sameRight) {
+      return set.main
     }
 
-    if (height > 0.85) {
-      return this.mountainTile
-    }
+    // --- Single edges ---
+    if (!sameTop && sameLeft && sameRight) return set.top
+    if (!sameBottom && sameLeft && sameRight) return set.bottom
+    if (!sameLeft && sameTop && sameBottom) return set.left
+    if (!sameRight && sameTop && sameBottom) return set.right
 
-    if (height > 0.7) {
-      return this.pickStable(this.rockTiles, x, y)
-    }
+    // --- Corners ---
+    if (!sameTop && !sameLeft) return set.topleft
+    if (!sameTop && !sameRight) return set.topright
+    if (!sameBottom && !sameLeft) return set.bottomleft
+    if (!sameBottom && !sameRight) return set.bottomright
 
-    if (moisture < 0.3) {
-      return this.pickStable(this.dirtTiles, x, y)
-    }
-
-    return this.pickStable(this.sandTiles, x, y)
+    // --- Fallback ---
+    return set.main
   }
 
   // =========================================================
@@ -174,15 +223,15 @@ export class GroundTiles {
   // STABLE RANDOM PICK
   // =========================================================
 
-  private hash(x: number, y: number): number {
-    const s = Math.sin(x * 12.9898 + y * 78.233 + this.seed) * 43758.5453
-    return s - Math.floor(s)
+  private getTileSet(type: TerrainType): AutoTileSet {
+    switch (type) {
+      case 'grass': return this.grass
+      case 'sand': return this.sand
+      case 'stone': return this.stone
+      case 'water': return this.water
+    }
   }
 
-  private pickStable(array: Texture[], x: number, y: number): Texture {
-    const r = this.hash(x, y)
-    return array[Math.floor(r * array.length)]
-  }
 
   destroy() {
     this.container.destroy({ children: true })
