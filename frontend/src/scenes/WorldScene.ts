@@ -166,6 +166,7 @@ export class WorldScene implements Scene {
       512,              // chunkSize
       16,               // tileSize
       2,                // load radius
+      (x, y) => this.ground!.getBaseTexture(x, y),
       (x, y) => this.ground!.getTileForPosition(x, y)
     )
     // --- 6. World Minimap ---

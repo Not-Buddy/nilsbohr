@@ -130,7 +130,7 @@ export default function PixiApp() {
 
   return (
     <>
-      <Application resizeTo={window} background="#000000">
+      <Application resizeTo={window} background="#ff00c8">
         <pixiContainer ref={setRoot} />
       </Application>
 

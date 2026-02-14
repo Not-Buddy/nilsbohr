@@ -16,14 +16,16 @@ type TerrainType = 'grass' | 'sand' | 'stone' | 'water';
 
 
 interface AutoTileSet {
+  base: Texture,
   tiles: Record<string, Texture>
 }
+
 
 
 export class GroundTiles {
   public container = new Container()
 
-  private tilemap = new CompositeTilemap()
+  private tilemap = new CompositeTilemap();
   private tileSize: number
   private options: GroundOptions
   private seed: number
@@ -38,6 +40,14 @@ export class GroundTiles {
     this.tileSize = options.tileSize ?? 16
     this.seed = options.seed ?? 1337
     this.container.addChild(this.tilemap)
+  }
+
+
+  private priority: Record<TerrainType, number> = {
+    water: 0,
+    sand: 1,
+    grass: 2,
+    stone: 3,
   }
 
   // =========================================================
@@ -60,6 +70,7 @@ export class GroundTiles {
     
     // All of these are (col, row) *****
     this.grass = {
+      base: getTile(2, 11),
       tiles:{
         'main' : getTile(2, 10),
         'top' : getTile(2, 9),
@@ -74,6 +85,7 @@ export class GroundTiles {
     }
 
     this.sand = {
+      base: getTile(7, 19),
       tiles:{
         'main' : getTile(7, 18),
         'top' : getTile(7, 17),
@@ -88,6 +100,7 @@ export class GroundTiles {
     }
 
     this.stone = {
+      base: getTile(8,11),
       tiles:{
         'main' : getTile(7, 10),
         'top' : getTile(7, 9),
@@ -102,6 +115,7 @@ export class GroundTiles {
     }
 
     this.water = {
+      base: getTile(24,4),
       tiles:{
         'main' : getTile(22, 7),
         'top' : getTile(22, 5),
@@ -137,6 +151,31 @@ export class GroundTiles {
     return 'grass'
   }
 
+  public getBaseTexture(x: number, y: number): Texture {
+    const size = this.tileSize
+
+    const center = this.getTerrainType(x, y)
+
+    const neighbors: TerrainType[] = [
+      center,
+      this.getTerrainType(x, y - size),
+      this.getTerrainType(x, y + size),
+      this.getTerrainType(x - size, y),
+      this.getTerrainType(x + size, y),
+    ]
+
+    let lowest = neighbors[0]
+
+    for (const t of neighbors) {
+      if (this.priority[t] < this.priority[lowest]) {
+        lowest = t
+      }
+    }
+
+    return this.getTileSet(lowest).base
+  }
+
+
   public getTileForPosition(x: number, y: number): Texture {
     const size = this.tileSize
 
@@ -156,7 +195,7 @@ export class GroundTiles {
 
     // --- Full surround ---
     if (sameTop && sameBottom && sameLeft && sameRight) {
-      return set.main
+      return set.main;
     }
 
     // --- Single edges ---
@@ -172,7 +211,7 @@ export class GroundTiles {
     if (!sameBottom && !sameRight) return set.bottomright
 
     // --- Fallback ---
-    return set.main
+    return Texture.EMPTY
   }
 
   // =========================================================

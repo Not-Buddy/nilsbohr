@@ -8,18 +8,23 @@ export class GroundChunkManager {
   private tileSize: number;
   private loadRadius: number;
   private getTileForPosition: (x: number, y: number) => any;
+  private getBaseTexture: (x: number, y: number) => any;
+
 
   constructor(
     parent: Container,
     chunkSize: number,
     tileSize: number,
     loadRadius: number,
-    getTileForPosition: (x: number, y: number) => any
+    getBaseTexture: (x: number, y: number) => any,
+    getTileForPosition: (x: number, y: number) => any,
+
   ) {
     this.parent = parent;
     this.chunkSize = chunkSize;
     this.tileSize = tileSize;
     this.loadRadius = loadRadius;
+    this.getBaseTexture = getBaseTexture
     this.getTileForPosition = getTileForPosition;
     this.chunks = new Map<string, GroundChunk>();
   }
@@ -51,6 +56,7 @@ export class GroundChunkManager {
             cy,
             this.chunkSize,
             this.tileSize,
+            this.getBaseTexture,
             this.getTileForPosition
           )
 
