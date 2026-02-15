@@ -1,5 +1,4 @@
-
-use axum::{response::IntoResponse, routing::get, Router, routing::post};
+use axum::{Router, response::IntoResponse, routing::get, routing::post};
 use std::env;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tracing::info;

@@ -1,7 +1,7 @@
 use axum::{
     extract::Json,
-    http::{StatusCode, header}, // Added 'header'
-    response::IntoResponse
+    http::{StatusCode, header},
+    response::IntoResponse,
 };
 use chrono::Utc;
 use git2::Repository;
@@ -29,12 +29,17 @@ pub async fn parse_repo_handler(Json(payload): Json<RepoRequest>) -> impl IntoRe
     let repo_path = Path::new("repos").join(&project_name);
 
     let repo_path_value = repo_path.clone(); // Store the value to use later
-    
+
     // Check if the repository already exists
-    let repo_exists = task::spawn_blocking(move || repo_path_value.exists()).await.unwrap_or(false);
+    let repo_exists = task::spawn_blocking(move || repo_path_value.exists())
+        .await
+        .unwrap_or(false);
 
     if repo_exists {
-        info!("Repository already exists, using existing clone at: {:?}", repo_path);
+        info!(
+            "Repository already exists, using existing clone at: {:?}",
+            repo_path
+        );
 
         // Perform git operations in a blocking task
         let repo_path_clone = repo_path.clone();
@@ -138,7 +143,6 @@ pub async fn parse_repo_handler(Json(payload): Json<RepoRequest>) -> impl IntoRe
                     }
                 }
             }
-            
             Ok(())
         }).await;
 
@@ -146,7 +150,8 @@ pub async fn parse_repo_handler(Json(payload): Json<RepoRequest>) -> impl IntoRe
             Ok(result) => {
                 if let Err(e) = result {
                     error!("{}", e);
-                    return (StatusCode::INTERNAL_SERVER_ERROR, "Git operation failed").into_response();
+                    return (StatusCode::INTERNAL_SERVER_ERROR, "Git operation failed")
+                        .into_response();
                 }
             }
             Err(e) => {
@@ -158,9 +163,7 @@ pub async fn parse_repo_handler(Json(payload): Json<RepoRequest>) -> impl IntoRe
         info!("Repository does not exist, cloning to: {:?}", repo_path);
 
         // Create the repos directory if it doesn't exist in a blocking task
-        let create_dir_result = task::spawn_blocking(|| {
-            fs::create_dir_all("repos")
-        }).await;
+        let create_dir_result = task::spawn_blocking(|| fs::create_dir_all("repos")).await;
 
         if let Err(e) = create_dir_result {
             error!("Failed to create repos directory: {}", e);
@@ -175,20 +178,18 @@ pub async fn parse_repo_handler(Json(payload): Json<RepoRequest>) -> impl IntoRe
         // Clone the repository in a blocking task
         let url = payload.url.clone();
         let repo_path_clone = repo_path.clone();
-        let clone_result = task::spawn_blocking(move || {
-            Repository::clone(&url, &repo_path_clone)
-        }).await;
+        let clone_result =
+            task::spawn_blocking(move || Repository::clone(&url, &repo_path_clone)).await;
 
         match clone_result {
-            Ok(result) => {
-                match result {
-                    Ok(_) => info!("Clone successful"),
-                    Err(e) => {
-                        error!("Git clone failed: {}", e);
-                        return (StatusCode::BAD_REQUEST, format!("Git clone failed: {}", e)).into_response();
-                    }
+            Ok(result) => match result {
+                Ok(_) => info!("Clone successful"),
+                Err(e) => {
+                    error!("Git clone failed: {}", e);
+                    return (StatusCode::BAD_REQUEST, format!("Git clone failed: {}", e))
+                        .into_response();
                 }
-            }
+            },
             Err(e) => {
                 error!("Git clone task failed: {}", e);
                 return (StatusCode::INTERNAL_SERVER_ERROR, "Git clone failed").into_response();
@@ -197,19 +198,17 @@ pub async fn parse_repo_handler(Json(payload): Json<RepoRequest>) -> impl IntoRe
     }
 
     info!("Starting AST traversal");
-    
+
     // Perform the parsing in a blocking task
     let repo_path_clone = repo_path.clone();
-    let world_seed = match task::spawn_blocking(move || {
-        generate_world(&repo_path_clone)
-    }).await {
+    let world_seed = match task::spawn_blocking(move || generate_world(&repo_path_clone)).await {
         Ok(seed) => seed,
         Err(e) => {
             error!("Parsing task failed: {}", e);
             return (StatusCode::INTERNAL_SERVER_ERROR, "Parsing failed").into_response();
         }
     };
-    
+
     info!(
         cities = world_seed.world_meta.total_cities,
         buildings = world_seed.world_meta.total_buildings,
@@ -231,8 +230,9 @@ pub async fn parse_repo_handler(Json(payload): Json<RepoRequest>) -> impl IntoRe
                 StatusCode::OK,
                 [(header::CONTENT_TYPE, "application/json")],
                 pretty_json,
-            ).into_response()
-        },
+            )
+                .into_response()
+        }
         Err(e) => {
             error!("JSON Serialization failed: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Internal Server Error").into_response()

@@ -162,7 +162,6 @@ fn is_builtin(name: &str) -> bool {
         "StopIteration" | "StopAsyncIteration" | "SyntaxError" | "IndentationError" |
         "TabError" | "SystemError" | "SystemExit" | "TypeError" |
         "UnboundLocalError" | "UnicodeError" | "ValueError" | "ZeroDivisionError" |
-        
         // --- OS & IO Exceptions ---
         "EnvironmentError" | "IOError" | "WindowsError" | "BlockingIOError" |
         "ChildProcessError" | "ConnectionError" | "BrokenPipeError" |
