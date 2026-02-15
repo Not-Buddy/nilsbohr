@@ -142,8 +142,6 @@ export class GroundTiles {
       height *= this.getIslandMask(x, y)
     }
 
-    const moisture = this.getMoisture(x, y)
-
     if (height < 0.25) return 'water'
     if (height < 0.45) return 'sand'
     if (height > 0.75) return 'stone'
@@ -236,11 +234,11 @@ export class GroundTiles {
   // MOISTURE MAP
   // =========================================================
 
-  private getMoisture(x: number, y: number): number {
+  /*private getMoisture(x: number, y: number): number {
     const scale = 0.002
     const m = Math.sin((x + 999) * scale) + Math.cos((y - 999) * scale)
     return (m + 2) / 4
-  }
+  }*/
 
   // =========================================================
   // ISLAND MASK
