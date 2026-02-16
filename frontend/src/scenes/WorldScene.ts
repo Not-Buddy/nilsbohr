@@ -127,7 +127,7 @@ export class WorldScene implements Scene {
     // --- 4. Setup Chunk Manager ---
     this.chunkManager = new ChunkManager(this.cityLayer, {
       chunkSize: 1000,
-      loadRadius: 2, // Load 2 chunks out from player
+      loadRadius: 5, // Load 2 chunks out from player
       unloadRadius: 3,
     })
     this.chunkManager.setCities(cities, this.generator)
@@ -166,7 +166,6 @@ export class WorldScene implements Scene {
       512,              // chunkSize
       16,               // tileSize
       2,                // load radius
-      (x, y) => this.ground!.getBaseTexture(x, y),
       (x, y) => this.ground!.getTileForPosition(x, y)
     )
     // --- 6. World Minimap ---
@@ -220,6 +219,11 @@ export class WorldScene implements Scene {
         })
       }
     }
+    const waterRects = this.groundChunkManager?.getWaterCollisionRects()
+    if (waterRects) {
+        collisionBounds.push(...waterRects)
+    }
+    console.log("Collision rect count:", waterRects)
     this.player.setCollisionBounds(collisionBounds)
 
     // Check for city proximity (for enter prompt)
