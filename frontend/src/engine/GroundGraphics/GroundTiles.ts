@@ -28,8 +28,8 @@ export class GroundTiles {
   private sand!: AutoTileSet;
   private stone!: AutoTileSet;
   private water!: AutoTileSet;
-  private terrain: Terrain; 
-  private heightCache = new Map<string, number>();
+  private terrain: Terrain;
+  // private heightCache = new Map<string, number>(); // Not currently used
   private terrainCache = new Map<string, TerrainType>();
 
   private worldCenterX: number;
