@@ -1,5 +1,6 @@
 import { Container, Texture } from 'pixi.js'
 import { GroundChunk } from './GroundChunk'
+import { GroundProps } from './GroundProps'
 
 export class GroundChunkManager {
   private chunks: Map<string, GroundChunk>
@@ -7,6 +8,7 @@ export class GroundChunkManager {
   private chunkSize: number
   private tileSize: number
   private loadRadius: number
+  private props: GroundProps
 
   // Updated return type for System B
   private getTileForPosition: (
@@ -30,7 +32,8 @@ export class GroundChunkManager {
       base: Texture
       overlay?: Texture
       terrain: string
-    }
+    },
+    props: GroundProps
   ) {
     this.parent = parent
     this.chunkSize = chunkSize
@@ -38,6 +41,7 @@ export class GroundChunkManager {
     this.loadRadius = loadRadius
     this.getTileForPosition = getTileForPosition
     this.chunks = new Map<string, GroundChunk>()
+    this.props = props
   }
 
   private getChunkId(x: number, y: number) {
@@ -90,7 +94,8 @@ export class GroundChunkManager {
             cy,
             this.chunkSize,
             this.tileSize,
-            this.getTileForPosition
+            this.getTileForPosition,
+            this.props
           )
 
           this.parent.addChild(chunk.container)

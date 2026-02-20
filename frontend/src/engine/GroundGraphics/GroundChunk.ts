@@ -1,13 +1,17 @@
 import { Container, Texture } from 'pixi.js'
 import { CompositeTilemap } from '@pixi/tilemap'
+import { GroundProps } from './GroundProps'
+
 
 export class GroundChunk {
     public container: Container;
     private tilemap: CompositeTilemap;
+    private propsLayer: Container
     private chunkX: number;
     private chunkY: number;
     private chunkSize: number;
     private tileSize: number;
+    private props!: GroundProps;
 
     public waterTiles: { x: number; y: number }[] = [];
 
@@ -32,17 +36,22 @@ export class GroundChunk {
             base: Texture,
             overlay?: Texture,
             terrain: string
-        }
+        },
+        props: GroundProps
     ) {
         this.chunkX = chunkX;
         this.chunkY = chunkY;
         this.chunkSize = chunkSize;
         this.tileSize = tileSize;
         this.getTileForPosition = getTileForPosition;
-
+        this.props = props;
         this.container = new Container();
         this.tilemap = new CompositeTilemap();
         this.container.addChild(this.tilemap);
+
+        this.propsLayer = new Container();
+        this.propsLayer.sortableChildren = true;
+        this.container.addChild(this.propsLayer)
 
         this.generate();
     }
@@ -65,7 +74,7 @@ export class GroundChunk {
                 const localX = tx * this.tileSize;
                 const localY = ty * this.tileSize;
 
-                // 1️⃣ Draw base terrain tile (always full tile)
+                //Draw base terrain tile (always full tile)
                 this.tilemap.tile(
                     tileData.base,
                     localX,
@@ -80,7 +89,7 @@ export class GroundChunk {
                     });
                 }
 
-                // 2️⃣ Draw overlay edge tile (if exists)
+                // Draw overlay edge tile (if exists)
                 if (tileData.overlay && tileData.overlay !== Texture.EMPTY) {
                     this.tilemap.tile(
                         tileData.overlay,
@@ -88,8 +97,20 @@ export class GroundChunk {
                         localY
                     );
                 }
+                
+                // prop objects
+                this.props.tryPlaceProp(
+                    this.propsLayer,
+                    worldX,
+                    worldY,
+                    localX,
+                    localY,
+                    tileData.terrain
+                )
+
             }
         }
+
 
         this.container.position.set(worldStartX, worldStartY);
     }

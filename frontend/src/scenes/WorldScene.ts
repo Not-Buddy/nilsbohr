@@ -1,6 +1,3 @@
-// WorldScene.ts
-// Updated to use dynamic world sizing based on project content
-
 import { Container, Rectangle, Graphics, Text } from 'pixi.js'
 import { CityScene } from './CityScene'
 import { Player, type CollisionRect } from '../sprites/Player'
@@ -10,6 +7,7 @@ import { WorldGenerator } from '../engine/WorldGenerator'
 import { ChunkManager } from '../engine/ChunkManager'
 import { WorldMiniMap } from '../engine/WorldMiniMap'
 import { GroundTiles } from '../engine/GroundGraphics/GroundTiles'
+import { GroundProps } from '../engine/GroundGraphics/GroundProps'
 import { GroundChunkManager } from '../engine/GroundGraphics/GroundChunkManager'
 
 
@@ -17,9 +15,7 @@ import type { Scene } from '../types/Types'
 import type { City, ProjectResponse, WorldSeed } from '../types/SeedTypes'
 import type { SceneManager } from '../engine/SceneManager'
 import GroundMap from '../assets/WorldAssets/Environ/overworld_floor.png'
-
-console.log(GroundMap);
-
+import GroundObjects from '../assets/WorldAssets/Environ/props.png'
 
 export class WorldScene implements Scene {
   container = new Container()
@@ -30,11 +26,13 @@ export class WorldScene implements Scene {
   private input?: Input
   private manager: SceneManager
   private camera = new Camera()
-
+  
+  
   // New: Procedural generation systems
   private generator?: WorldGenerator
   private chunkManager?: ChunkManager
   private groundChunkManager?: GroundChunkManager
+  private groundProps?: GroundProps
   private enterPrompt?: Container  // UI prompt for city entry
   private minimap?: WorldMiniMap
   private ground?: GroundTiles
@@ -160,13 +158,21 @@ export class WorldScene implements Scene {
       tilesetPath: GroundMap
     })
 
+    this.groundProps = new GroundProps({
+      tileSize: 16,
+      tilesetPath: GroundObjects
+    })
+
     await this.ground.load()
+    await this.groundProps.load()
+
     this.groundChunkManager = new GroundChunkManager(
       this.groundLayer,
       512,              // chunkSize
       16,               // tileSize
       2,                // load radius
-      (x, y) => this.ground!.getTileForPosition(x, y)
+      (x, y) => this.ground!.getTileForPosition(x, y),
+      this.groundProps
     )
     // --- 6. World Minimap ---
     const worldRect = new Rectangle(worldX, worldY, worldW, worldH)
@@ -223,7 +229,7 @@ export class WorldScene implements Scene {
     if (waterRects) {
         collisionBounds.push(...waterRects)
     }
-    console.log("Collision rect count:", waterRects)
+    // console.log("Collision rect count:", waterRects)
     this.player.setCollisionBounds(collisionBounds)
 
     // Check for city proximity (for enter prompt)

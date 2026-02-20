@@ -14,8 +14,14 @@ interface PropSet {
   allowedTerrain: string[]
 }
 
+const terrainDensity = {
+  "grass": 0.05,
+  "sand": 0.03,
+  "stone": 0.03,
+  "water": 0.001
+}
+
 export class GroundProps {
-  public container = new Container()
 
   private tileSize: number
   private seed: number
@@ -35,7 +41,8 @@ export class GroundProps {
   private bigBush!: PropSet
   private deadBush!: PropSet
 
-  private flower!: PropSet
+  private flower1!: PropSet
+  private flower2!: PropSet
   private lilac!: PropSet
   private aquaPlant!: PropSet
 
@@ -47,12 +54,7 @@ export class GroundProps {
     this.tileSize = options.tileSize ?? 16
     this.seed = options.seed ?? 1337
 
-    this.container.sortableChildren = true
   }
-
-  // =========================================================
-  // LOAD PROP TEXTURES
-  // =========================================================
 
   async load() {
     const baseTexture = await Assets.load(this.options.tilesetPath)
@@ -70,58 +72,58 @@ export class GroundProps {
 
     // ===== TREES =====
     this.smallTree = {
-      texture: getTile(0, 0, 1, 2),
-      chance: 0.02,
+      texture: getTile(14, 32, 4, 7),
+      chance: 0.003,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
 
     this.medTree = {
-      texture: getTile(1, 0, 2, 2),
+      texture: getTile(12, 20, 5, 8),
       chance: 0.015,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
 
     this.bigTree = {
-      texture: getTile(3, 0, 3, 3),
-      chance: 0.01,
+      texture: getTile(17, 21, 8, 10),
+      chance: 0.001,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
 
     this.mossyStump = {
-      texture: getTile(6, 0),
-      chance: 0.03,
+      texture: getTile(12, 28, 5, 3),
+      chance: 0.003,
       anchorY: 1,
-      allowedTerrain: ['grass', 'stone']
+      allowedTerrain: ['grass']
     }
 
     // ===== ROCKS =====
     this.rock = {
-      texture: getTile(7, 0),
-      chance: 0.04,
+      texture: getTile(15, 4),
+      chance: 0.003,
       anchorY: 1,
       allowedTerrain: ['grass', 'stone']
     }
 
     this.bigRock = {
-      texture: getTile(8, 0, 2, 1),
-      chance: 0.02,
+      texture: getTile(15, 4),
+      chance: 0.002,
       anchorY: 1,
       allowedTerrain: ['stone']
     }
 
     this.aquaRock = {
-      texture: getTile(10, 0),
-      chance: 0.03,
+      texture: getTile(15, 4),
+      chance: 0.0003,
       anchorY: 1,
       allowedTerrain: ['water']
     }
 
     // ===== BUSHES =====
     this.bush = {
-      texture: getTile(11, 0),
+      texture: getTile(15, 4),
       chance: 0.05,
       anchorY: 1,
       allowedTerrain: ['grass']
@@ -135,30 +137,37 @@ export class GroundProps {
     }
 
     this.deadBush = {
-      texture: getTile(14, 0),
+      texture: getTile(15, 4),
       chance: 0.02,
       anchorY: 1,
       allowedTerrain: ['sand']
     }
 
     // ===== PLANTS =====
-    this.flower = {
-      texture: getTile(15, 0),
+    this.flower1 = {
+      texture: getTile(15, 4),
+      chance: 0.07,
+      anchorY: 1,
+      allowedTerrain: ['grass']
+    }
+
+    this.flower2 = {
+      texture: getTile(15, 4),
       chance: 0.07,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
 
     this.lilac = {
-      texture: getTile(16, 0),
+      texture: getTile(15, 4),
       chance: 0.04,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
 
     this.aquaPlant = {
-      texture: getTile(17, 0),
-      chance: 0.05,
+      texture: getTile(15, 4),
+      chance: 0.0003,
       anchorY: 1,
       allowedTerrain: ['water']
     }
@@ -175,26 +184,31 @@ export class GroundProps {
       this.bush,
       this.bigBush,
       this.deadBush,
-      this.flower,
+      this.flower1,
+      this.flower2,
       this.lilac,
       this.aquaPlant
     ]
   }
 
-  // =========================================================
-  // PUBLIC API (CALLED FROM CHUNK)
-  // =========================================================
-
   public tryPlaceProp(
+    target: Container,
     worldX: number,
     worldY: number,
     localX: number,
     localY: number,
     terrainType: string
   ) {
-    const rand = this.seededRandom(worldX, worldY)
+    const spawnrand = this.seededRandom(worldX, worldY)
+    const density = terrainDensity[terrainType] ?? 0
 
-    const prop = this.pickProp(rand, terrainType)
+    if (spawnrand > density) {
+      return // no  prop on this tile
+    }
+
+    const proprand = this.seededRandom(worldX + 9999, worldY + 9999)
+
+    const prop = this.pickProp(proprand, terrainType)
     if (!prop) return
 
     const sprite = new Sprite(prop.texture)
@@ -208,12 +222,8 @@ export class GroundProps {
     sprite.y = localY
     sprite.zIndex = sprite.y
 
-    this.container.addChild(sprite)
+    target.addChild(sprite)
   }
-
-  // =========================================================
-  // PROP PICK LOGIC (Balanced)
-  // =========================================================
 
   private pickProp(rand: number, terrain: string): PropSet | null {
     const validProps = this.allProps.filter(p =>
@@ -237,17 +247,10 @@ export class GroundProps {
     return null
   }
 
-  // =========================================================
-  // DETERMINISTIC RANDOM
-  // =========================================================
-
   private seededRandom(x: number, y: number): number {
     const seed = x * 374761393 + y * 668265263 + this.seed
     let t = (seed ^ (seed >> 13)) * 1274126177
     return ((t ^ (t >> 16)) >>> 0) / 4294967295
   }
 
-  destroy() {
-    this.container.destroy({ children: true })
-  }
 }
