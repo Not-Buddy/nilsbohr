@@ -14,12 +14,12 @@ interface PropSet {
   allowedTerrain: string[]
 }
 
-const terrainDensity = {
-  "grass": 0.05,
-  "sand": 0.03,
-  "stone": 0.03,
-  "water": 0.001
-}
+// const terrainDensity = {
+//   "grass": 0.05,
+//   "sand": 0.03,
+//   "stone": 0.03,
+//   "water": 0.001
+// }
 
 export class GroundProps {
 
@@ -200,7 +200,8 @@ export class GroundProps {
     terrainType: string
   ) {
     const spawnrand = this.seededRandom(worldX, worldY)
-    const density = terrainDensity[terrainType] ?? 0
+    // const density = terrainDensity[terrainType] ?? 0
+    const density = 0 // commented out due to TS error
 
     if (spawnrand > density) {
       return // no  prop on this tile
