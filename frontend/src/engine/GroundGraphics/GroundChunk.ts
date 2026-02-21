@@ -1,6 +1,7 @@
 import { Container, Texture } from 'pixi.js'
 import { CompositeTilemap } from '@pixi/tilemap'
 import { GroundProps } from './GroundProps'
+import type { WorldTerrainType } from '../../types/Types'
 
 
 export class GroundChunk {
@@ -21,7 +22,7 @@ export class GroundChunk {
     ) => {
         base: Texture,
         overlay?: Texture,
-        terrain: string
+        terrain: WorldTerrainType
     };
 
     constructor(
@@ -35,7 +36,7 @@ export class GroundChunk {
         ) => {
             base: Texture,
             overlay?: Texture,
-            terrain: string
+            terrain: WorldTerrainType
         },
         props: GroundProps
     ) {

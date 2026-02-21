@@ -1,6 +1,7 @@
 import { Container, Texture } from 'pixi.js'
 import { GroundChunk } from './GroundChunk'
 import { GroundProps } from './GroundProps'
+import type { WorldTerrainType } from '../../types/Types'
 
 export class GroundChunkManager {
   private chunks: Map<string, GroundChunk>
@@ -17,7 +18,7 @@ export class GroundChunkManager {
   ) => {
     base: Texture
     overlay?: Texture
-    terrain: string
+    terrain: WorldTerrainType
   }
 
   constructor(
@@ -31,7 +32,7 @@ export class GroundChunkManager {
     ) => {
       base: Texture
       overlay?: Texture
-      terrain: string
+      terrain: WorldTerrainType
     },
     props: GroundProps
   ) {
