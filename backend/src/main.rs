@@ -44,7 +44,7 @@ async fn main() {
         );
 
     let port = env::var("PORT")
-        .unwrap_or_else(|_| "4000".to_string())
+        .unwrap_or_else(|_| "5000".to_string())
         .parse::<u16>()
         .expect("PORT must be a valid number");
 
