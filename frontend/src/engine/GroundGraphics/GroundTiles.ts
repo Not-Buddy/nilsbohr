@@ -1,5 +1,6 @@
 import { Assets, Texture, Rectangle } from 'pixi.js'
 import { Terrain } from './Terrain'
+import type { WorldTerrainType } from '../../types/Types'
 
 export interface GroundOptions {
   worldX: number
@@ -11,8 +12,6 @@ export interface GroundOptions {
   seed?: number
   island?: boolean
 }
-
-type TerrainType = 'grass' | 'sand' | 'stone' | 'water'
 
 interface AutoTileSet {
   base: Texture
@@ -29,7 +28,7 @@ export class GroundTiles {
   private stone!: AutoTileSet;
   private water!: AutoTileSet;
   private terrain: Terrain;
-  private terrainCache = new Map<string, TerrainType>();
+  private terrainCache = new Map<string, WorldTerrainType>();
 
   private worldCenterX: number;
   private worldCenterY: number;
@@ -62,7 +61,7 @@ export class GroundTiles {
   // TERRAIN PRIORITY (for base blending)
   // =========================================================
 
-  private priority: Record<TerrainType, number> = {
+  private priority: Record<WorldTerrainType, number> = {
     water: 0,
     sand: 1,
     grass: 2,
@@ -148,14 +147,14 @@ export class GroundTiles {
     }
   }
 
-  private getTerrainType(x: number, y: number): TerrainType {
+  private getTerrainType(x: number, y: number): WorldTerrainType {
     const key = `${x},${y}`
     const cached = this.terrainCache.get(key)
     if (cached) return cached
 
     const height = this.terrain.getHeight(x, y)
 
-    let type: TerrainType
+    let type: WorldTerrainType
 
     if (height < 0.30) type = 'water'
     else if (height < 0.42) type = 'sand'
@@ -167,7 +166,7 @@ export class GroundTiles {
   }
 
 
-  private getTileSet(type: TerrainType): AutoTileSet {
+  private getTileSet(type: WorldTerrainType): AutoTileSet {
     switch (type) {
       case 'grass': return this.grass
       case 'sand': return this.sand
@@ -183,7 +182,7 @@ export class GroundTiles {
 public getTileForPosition(x: number, y: number): {
   base: Texture
   overlay?: Texture
-  terrain: TerrainType
+  terrain: WorldTerrainType
 } {
   const size = this.tileSize
   const type = this.getTerrainType(x, y)
@@ -216,7 +215,7 @@ public getTileForPosition(x: number, y: number): {
   //Find lowest-priority neighbor to use as base
   const neighbors = [top, bottom, left, right]
 
-  let lowest: TerrainType | null = null
+  let lowest: WorldTerrainType | null = null
 
   for (const n of neighbors) {
     if (this.priority[n] < currentPriority) {

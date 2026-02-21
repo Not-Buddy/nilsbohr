@@ -13,3 +13,5 @@ export interface Scene {
   update(dt: number): void
   unmount(): void
 };
+
+export type  WorldTerrainType = 'grass' | 'sand' | 'stone' | 'water'
