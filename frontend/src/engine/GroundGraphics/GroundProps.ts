@@ -10,6 +10,7 @@ export interface GroundPropsOptions {
 interface PropSet {
   texture: Texture
   chance: number
+  radius: number
   anchorX?: number
   anchorY?: number
   allowedTerrain: WorldTerrainType[]
@@ -18,7 +19,7 @@ interface PropSet {
 const terrainDensity : Record<WorldTerrainType, number> = {
   grass : 0.03,
   sand : 0.002,
-  water : 0.003,
+  water : 0.0,
   stone : 0.0,
 }
 
@@ -49,7 +50,7 @@ export class GroundProps {
 
   // Internal collection
   private allProps: PropSet[] = []
-  //private placedProps: {x:number,y:number,radius:number}[] = []
+  private placedProps: {x:number,y:number,radius:number}[] = []
 
   constructor(options: GroundPropsOptions) {
     this.options = options
@@ -76,6 +77,7 @@ export class GroundProps {
     this.smallTree = {
       texture: getTile(14, 32, 4, 7),
       chance: 2,
+      radius: 28,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
@@ -83,6 +85,7 @@ export class GroundProps {
     this.medTree = {
       texture: getTile(12, 20, 5, 8),
       chance: 3,
+      radius: 28,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
@@ -90,6 +93,7 @@ export class GroundProps {
     this.bigTree = {
       texture: getTile(17, 21, 8, 10),
       chance: 2,
+      radius: 45,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
@@ -97,6 +101,7 @@ export class GroundProps {
     this.mossyStump = {
       texture: getTile(12, 28, 5, 3),
       chance: 1,
+      radius: 10,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
@@ -105,6 +110,7 @@ export class GroundProps {
     this.rock = {
       texture: getTile(19, 33, 1, 1),
       chance: 2,
+      radius: 5,
       anchorY: 1,
       allowedTerrain: ['grass', 'sand']
     }
@@ -112,6 +118,7 @@ export class GroundProps {
     this.bigRock = {
       texture: getTile(19, 34, 2, 2),
       chance: 1,
+      radius: 10,
       anchorY: 1,
       allowedTerrain: ['grass', 'sand']
     }
@@ -119,6 +126,7 @@ export class GroundProps {
     this.aquaRock = {
       texture: getTile(20, 32, 2, 2),
       chance: 1,
+      radius: 10,
       anchorY: 1,
       allowedTerrain: ['water']
     }
@@ -127,6 +135,7 @@ export class GroundProps {
     this.bush = {
       texture: getTile(18, 37, 3, 2),
       chance: 6,
+      radius: 20,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
@@ -134,6 +143,7 @@ export class GroundProps {
     this.bigBush = {
       texture: getTile(18, 39, 3, 2),
       chance: 3,
+      radius: 20,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
@@ -141,21 +151,24 @@ export class GroundProps {
     this.deadBush = {
       texture: getTile(21, 38, 3, 2),
       chance: 8,
+      radius: 15,
       anchorY: 1,
       allowedTerrain: ['sand']
     }
 
     // ===== PLANTS =====
     this.flower1 = {
-      texture: getTile(22, 34, 1, 1),
+      texture: getTile(22, 33, 1, 1),
       chance: 10,
+      radius: 1,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
 
     this.flower2 = {
-      texture: getTile(22, 33, 1, 1),
-      chance: 14,
+      texture: getTile(22, 34, 1, 1),
+      chance: 30,
+      radius: 1,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
@@ -163,6 +176,7 @@ export class GroundProps {
     this.lilac = {
       texture: getTile(23, 33, 2, 3),
       chance: 3,
+      radius: 5,
       anchorY: 1,
       allowedTerrain: ['grass']
     }
@@ -170,6 +184,7 @@ export class GroundProps {
     this.aquaPlant = {
       texture: getTile(22, 35, 1, 2),
       chance: 6,
+      radius: 5,
       anchorY: 1,
       allowedTerrain: ['water']
     }
@@ -223,10 +238,10 @@ export class GroundProps {
       else if (biome < 0.65) biomeModifier = 1.0 // mixed
       else biomeModifier = 1.8                  // forest
     }
-
+/* 
     if (terrainType === 'sand') {
       biomeModifier = biome > 0.6 ? 0.2 : 1.2   // dunes vs desert flats
-    }
+    } */
 
     const finalDensity =
       density *
@@ -241,8 +256,19 @@ export class GroundProps {
     const prop = this.pickProp(proprand, terrainType, biome)
     if (!prop) return
 
-    const sprite = new Sprite(prop.texture)
+    const newRadius = prop.radius
+    for (const p of this.placedProps) {
+      const dx = p.x - worldX
+      const dy = p.y - worldY
 
+      const minDist = p.radius + newRadius
+
+      if (dx * dx + dy * dy < minDist * minDist)
+        return
+    }
+    
+    const sprite = new Sprite(prop.texture)
+    
     sprite.anchor.set(
       prop.anchorX ?? 0.5,
       prop.anchorY ?? 1
@@ -253,6 +279,12 @@ export class GroundProps {
     sprite.x = localX + (proprand - 0.5) * jitter
     sprite.y = localY + (spawnrand - 0.5) * jitter
     sprite.zIndex = sprite.y
+
+    this.placedProps.push({
+      x: worldX,
+      y: worldY,
+      radius: newRadius
+    })
 
     target.addChild(sprite)
   }
