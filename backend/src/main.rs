@@ -1,19 +1,10 @@
-use axum::{Router, response::IntoResponse, routing::get, routing::post};
 use std::env;
-use tower_http::cors::{AllowOrigin, CorsLayer};
+use std::sync::Arc;
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
-mod git_layer;
-mod languages;
-mod models;
-mod parser;
-mod routes;
-mod symbol_table;
-
-async fn health_check() -> impl IntoResponse {
-    axum::Json(serde_json::json!({"status": "healthy"}))
-}
+use backend::auth;
+use backend::build_app;
 
 #[tokio::main]
 async fn main() {
@@ -23,25 +14,23 @@ async fn main() {
 
     info!("Logger initialized");
 
-    let app = Router::new()
-        .route("/parse", post(routes::parse_repo_handler))
-        .route("/", get(health_check))
-        .route("/health", get(health_check))
-        .layer(
-            CorsLayer::new()
-                .allow_origin(AllowOrigin::predicate(
-                    |origin: &http::HeaderValue, _request_parts: &http::request::Parts| {
-                        origin.as_bytes().starts_with(b"http://localhost:")
-                            || origin.as_bytes().starts_with(b"https://nilsbohr")
-                            || origin.as_bytes() == b"http://localhost"
-                            || origin
-                                .as_bytes()
-                                .starts_with(b"https://nilsbohr.vercel.app")
-                    },
-                ))
-                .allow_methods(tower_http::cors::Any)
-                .allow_headers(tower_http::cors::Any),
-        );
+    // Load .env file (silently ignore if missing — e.g. in production)
+    dotenvy::dotenv().ok();
+
+    // Initialize auth subsystem
+    let auth_config = auth::AuthConfig::from_env();
+    let redis_pool = auth::redis::create_pool(&auth_config.redis_url).await;
+    let http_client = reqwest::Client::new();
+
+    info!("Redis pool and auth config initialized");
+
+    let state = Arc::new(auth::AppState {
+        config: auth_config,
+        redis: redis_pool,
+        http: http_client,
+    });
+
+    let app = build_app(state);
 
     let port = env::var("PORT")
         .unwrap_or_else(|_| "5000".to_string())

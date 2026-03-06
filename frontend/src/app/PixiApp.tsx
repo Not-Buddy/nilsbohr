@@ -2,7 +2,7 @@
 import { extend, Application } from '@pixi/react';
 import { useRef, useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import axios from 'axios';
+import api from './auth/api';
 import { Container } from 'pixi.js';
 import { SceneManager } from '../engine/SceneManager';
 import { WorldScene } from '../scenes/WorldScene';
@@ -55,8 +55,8 @@ export default function PixiApp() {
           setPhase('parsing');
           setProgress(5);
 
-          const response = await axios.post(
-            import.meta.env.VITE_BACKEND_URL + '/parse',
+          const response = await api.post(
+            '/parse',
             { url: repoUrl },
             {
               onDownloadProgress: (progressEvent) => {

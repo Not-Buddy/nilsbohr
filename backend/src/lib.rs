@@ -1,0 +1,53 @@
+pub mod auth;
+pub mod git_layer;
+pub mod languages;
+pub mod models;
+pub mod parser;
+pub mod routes;
+pub mod symbol_table;
+
+use axum::{Router, response::IntoResponse, routing::get, routing::post};
+use std::sync::Arc;
+use tower_http::cors::{AllowOrigin, CorsLayer};
+
+async fn health_check() -> impl IntoResponse {
+    axum::Json(serde_json::json!({"status": "healthy"}))
+}
+
+/// Build the application router with the given shared state.
+/// Extracted so integration tests can create the same app without starting a server.
+pub fn build_app(state: Arc<auth::AppState>) -> Router {
+    Router::new()
+        // Protected route — AuthUser extractor enforces auth
+        .route("/parse", post(routes::parse_repo_handler))
+        // Auth routes
+        .route("/auth/login", get(auth::routes::login))
+        .route("/auth/callback", get(auth::routes::callback))
+        .route("/auth/me", get(auth::routes::me))
+        .route("/auth/repos", get(auth::routes::repos))
+        .route("/auth/logout", post(auth::routes::logout))
+        .with_state(state)
+        // Public routes (no state needed)
+        .route("/", get(health_check))
+        .route("/health", get(health_check))
+        .layer(
+            CorsLayer::new()
+                .allow_origin(AllowOrigin::predicate(
+                    |origin: &http::HeaderValue, _request_parts: &http::request::Parts| {
+                        origin.as_bytes().starts_with(b"http://localhost:")
+                            || origin.as_bytes().starts_with(b"https://nilsbohr")
+                            || origin.as_bytes() == b"http://localhost"
+                            || origin
+                                .as_bytes()
+                                .starts_with(b"https://nilsbohr.vercel.app")
+                    },
+                ))
+                .allow_methods([http::Method::GET, http::Method::POST, http::Method::OPTIONS])
+                .allow_headers([
+                    http::header::CONTENT_TYPE,
+                    http::header::AUTHORIZATION,
+                    http::header::COOKIE,
+                ])
+                .allow_credentials(true),
+        )
+}

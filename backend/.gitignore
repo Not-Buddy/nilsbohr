@@ -1,3 +1,4 @@
 /target
 /repos
 Cargo.lock
+.env

@@ -4,6 +4,7 @@
           height: 64px;
           display: flex;
           align-items: center;
+          justify-content: space-between;
           padding: 0 24px;
           font-family: 'Press Start 2P', monospace;
           color: #000000;
@@ -30,3 +31,77 @@
           font-weight: 600;
         }
 
+        /* Auth section */
+        .nav-auth {
+          display: flex;
+          align-items: center;
+        }
+
+        .nav-login-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          padding: 10px 20px;
+          background: linear-gradient(135deg, #24292e 0%, #1a1e22 100%);
+          color: #f0f6fc;
+          border: 2px solid #444c56;
+          border-radius: 8px;
+          font-family: 'Press Start 2P', monospace;
+          font-size: 9px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .nav-login-btn:hover {
+          background: linear-gradient(135deg, #2d333b 0%, #24292e 100%);
+          border-color: #768390;
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+          transform: translateY(-1px);
+        }
+
+        .github-icon {
+          flex-shrink: 0;
+        }
+
+        /* User info when logged in */
+        .nav-user {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+
+        .nav-avatar {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          border: 2px solid #B47C57;
+          box-shadow: 0 0 0 2px #451B0B;
+        }
+
+        .nav-username {
+          font-family: 'Press Start 2P', monospace;
+          font-size: 9px;
+          color: #f1f5f9;
+          background: rgba(0, 0, 0, 0.4);
+          padding: 6px 10px;
+          border-radius: 4px;
+        }
+
+        .nav-logout-btn {
+          padding: 8px 14px;
+          background: transparent;
+          color: #ef4444;
+          border: 2px solid #ef4444;
+          border-radius: 6px;
+          font-family: 'Press Start 2P', monospace;
+          font-size: 8px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .nav-logout-btn:hover {
+          background: #ef4444;
+          color: #fff;
+          box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+        }

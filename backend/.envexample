@@ -1,0 +1,12 @@
+# Redis connection
+REDIS_URL=redis://127.0.0.1:6379
+
+# GitHub OAuth App (https://github.com/settings/developers)
+GITHUB_CLIENT_ID=your_client_id_here
+GITHUB_CLIENT_SECRET=your_client_secret_here
+
+# JWT signing key (generate with: openssl rand -hex 32)
+JWT_SECRET=your_jwt_secret_here
+
+# Where to redirect after login
+FRONTEND_URL=http://localhost:3000

@@ -7,15 +7,25 @@ use chrono::Utc;
 use git2::Repository;
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 use tokio::task;
 use tracing::{error, info, instrument, warn};
 
+use crate::auth::{AppState, AuthUser};
 use crate::models::{RepoRequest, WorldResponse};
 use crate::parser::generate_world;
 
-#[instrument]
-pub async fn parse_repo_handler(Json(payload): Json<RepoRequest>) -> impl IntoResponse {
-    info!("Starting job for repo: {}", payload.url);
+#[instrument(skip(_state, auth_user))]
+pub async fn parse_repo_handler(
+    axum::extract::State(_state): axum::extract::State<Arc<AppState>>,
+    auth_user: AuthUser,
+    Json(payload): Json<RepoRequest>,
+) -> impl IntoResponse {
+    info!(
+        user = %auth_user.username,
+        github_id = auth_user.github_id,
+        "Starting job for repo: {}", payload.url
+    );
 
     // Extract project name from URL
     let project_name = payload

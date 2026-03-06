@@ -11,10 +11,31 @@
   width: 100%;
   min-height: calc(100vh - 64px - 56px);
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: row;
+  align-items: stretch;
   overflow: hidden;
   z-index: 1;
+}
+
+/* Left sidebar for repos */
+.repo-sidebar {
+  flex: 0 0 220px;
+  padding: 20px 12px 20px 20px;
+  overflow-y: auto;
+  max-height: calc(100vh - 64px - 56px);
+}
+
+.repo-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.repo-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.repo-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(180, 124, 87, 0.4);
+  border-radius: 2px;
 }
 
 .content-wrapper {
@@ -24,6 +45,7 @@
   align-items: center;
   justify-content: center;
   padding: 20px;
+  flex: 1;
 }
 
 .card-container {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import backgroundCard from '../../../assets/backgroundcard.svg';
 import { useNavigate } from 'react-router-dom';
+import RepoList from './RepoList';
 import './mainCompo.css';
 
 export default function MainCompo() {
@@ -27,6 +28,11 @@ export default function MainCompo() {
       <button onClick={() => navigate('/game')} className="pixi-btn">
         Pixi
       </button>
+
+      {/* Left sidebar — User's repos */}
+      <aside className="repo-sidebar">
+        <RepoList onSelect={(url) => setRepoUrl(url)} />
+      </aside>
 
       {/* Main Content Card */}
       <div className="content-wrapper">

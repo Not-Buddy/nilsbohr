@@ -1,0 +1,227 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+/* Background */
+.landing-bg {
+  position: fixed;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(18px) brightness(0.3);
+  z-index: 0;
+}
+
+/* Main container */
+.landing-container {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Card */
+.landing-card {
+  width: 480px;
+  max-width: 90vw;
+  padding: 48px 40px;
+  background: linear-gradient(145deg, rgba(20, 15, 10, 0.92), rgba(35, 25, 15, 0.95));
+  border: 2px solid #451B0B;
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 4px rgba(180, 124, 87, 0.15),
+    0 30px 80px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(252, 189, 128, 0.08);
+  text-align: center;
+  position: relative;
+  backdrop-filter: blur(20px);
+}
+
+/* Logo */
+.landing-logo {
+  margin-bottom: 16px;
+}
+
+.landing-logo-icon {
+  font-size: 48px;
+  display: inline-block;
+  animation: logo-bounce 2s ease-in-out infinite;
+}
+
+@keyframes logo-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+/* Title */
+.landing-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(22px, 4vw, 32px);
+  color: #FCBD80;
+  margin-bottom: 16px;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 10px rgba(252, 189, 128, 0.3);
+}
+
+/* Tagline */
+.landing-tagline {
+  font-size: 14px;
+  color: #b8a89a;
+  line-height: 1.7;
+  margin-bottom: 28px;
+  max-width: 360px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Feature pills */
+.landing-features {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 32px;
+}
+
+.landing-feature-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(252, 189, 128, 0.08);
+  border: 1px solid rgba(252, 189, 128, 0.15);
+  border-radius: 20px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: #d4b896;
+  white-space: nowrap;
+}
+
+.pill-icon {
+  font-size: 12px;
+}
+
+/* Login button */
+.landing-login-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px 28px;
+  background: linear-gradient(135deg, #FCBD80 0%, #e8a560 100%);
+  color: #451B0B;
+  border: 2px solid #451B0B;
+  border-radius: 10px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow:
+    0 4px 15px rgba(252, 189, 128, 0.2),
+    inset 0 0 0 2px rgba(180, 124, 87, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-login-btn::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+  transition: left 0.5s ease;
+}
+
+.landing-login-btn:hover::after {
+  left: 100%;
+}
+
+.landing-login-btn:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 25px rgba(252, 189, 128, 0.35),
+    inset 0 0 0 2px rgba(180, 124, 87, 0.5);
+}
+
+.landing-login-btn:active {
+  transform: translateY(0);
+}
+
+.landing-login-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.landing-github-icon {
+  flex-shrink: 0;
+}
+
+/* Footer text */
+.landing-footer-text {
+  font-size: 10px;
+  color: #6b5d52;
+  margin-top: 16px;
+}
+
+/* Floating particles */
+.landing-particles {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.landing-particle {
+  position: absolute;
+  bottom: -10px;
+  width: 3px;
+  height: 3px;
+  background: rgba(252, 189, 128, 0.3);
+  border-radius: 50%;
+  animation: particle-float linear infinite;
+}
+
+@keyframes particle-float {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-100vh) scale(0.3);
+    opacity: 0;
+  }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .landing-card {
+    padding: 36px 24px;
+  }
+
+  .landing-title {
+    font-size: 20px;
+  }
+
+  .landing-login-btn {
+    font-size: 9px;
+    padding: 14px 20px;
+  }
+
+  .landing-feature-pill {
+    font-size: 6px;
+    padding: 5px 10px;
+  }
+}

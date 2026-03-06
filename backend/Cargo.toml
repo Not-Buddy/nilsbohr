@@ -7,6 +7,10 @@ edition = "2024"
 name = "backend"
 path = "src/main.rs"
 
+[lib]
+name = "backend"
+path = "src/lib.rs"
+
 [dependencies]
 axum = "0.7"
 tokio = { version = "1.0", features = ["full"] }
@@ -30,3 +34,16 @@ chrono = "0.4"
 tower-http = { version = "0.5", features = ["cors"] }
 http = "1.0"
 rayon = "1.11.0"
+
+# Auth
+jsonwebtoken = "9"
+bb8 = "0.8"
+bb8-redis = "0.17"
+redis = { version = "0.27", features = ["tokio-comp"] }
+reqwest = { version = "0.12", features = ["json"] }
+uuid = { version = "1", features = ["v4"] }
+cookie = "0.18"
+dotenvy = "0.15"
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
