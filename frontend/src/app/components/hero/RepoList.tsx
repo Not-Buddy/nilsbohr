@@ -48,10 +48,9 @@ export default function RepoList({ onSelect }: Props) {
     return (
       <div className="repo-list-section">
         <p className="repo-list-label">Your Repositories</p>
-        <div className="repo-list-skeletons">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="repo-skeleton" />
-          ))}
+        <div className="repo-loading-container">
+          <div className="repo-spinner" />
+          <span className="repo-loading-text">Loading...</span>
         </div>
       </div>
     );
