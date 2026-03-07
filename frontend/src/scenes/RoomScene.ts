@@ -189,7 +189,7 @@ export class RoomScene implements Scene {
         const contentHeight = worldH - contentTop - 20
 
         if (artifacts.length > 0) {
-            const placements = layoutArtifacts(artifacts, worldW, contentHeight)
+            const placements = layoutArtifacts(artifacts, worldW, contentHeight, this.room.spec.id)
 
             placements.forEach(placement => {
                 const artSprite = createArtifactSprite(placement.artifact)

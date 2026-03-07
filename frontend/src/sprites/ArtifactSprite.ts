@@ -3,6 +3,7 @@
 
 import { Container, Graphics, Text } from 'pixi.js'
 import type { Artifact } from '../types/SeedTypes'
+import { SeededRandom } from '../engine/SeededRandom'
 
 // Color coding by artifact type
 const ARTIFACT_COLORS: Record<string, number> = {
@@ -125,37 +126,94 @@ export function createArtifactSprite(artifact: Artifact): Container {
     return container
 }
 
-export function layoutArtifacts(artifacts: Artifact[], areaWidth: number, areaHeight: number): ArtifactPlacement[] {
+export function layoutArtifacts(
+    artifacts: Artifact[], 
+    areaWidth: number, 
+    areaHeight: number,
+    seedStr: string = 'default'
+): ArtifactPlacement[] {
     const placements: ArtifactPlacement[] = []
     if (artifacts.length === 0) return placements
 
     const itemW = 120
     const itemH = 80
-    const margin = 40
-    const gap = 20
+    
+    // Bounds to keep artifacts fully visible with some padding
+    const padding = 30
+    const minX = padding + itemW / 2
+    const maxX = Math.max(minX, areaWidth - padding - itemW / 2)
+    const minY = padding + itemH / 2
+    const maxY = Math.max(minY, areaHeight - padding - itemH / 2)
 
-    const availableW = areaWidth - margin * 2
-    const availableH = areaHeight - margin * 2
+    // Using SeededRandom for deterministic layout per room
+    const rng = new SeededRandom(seedStr)
+    const centerX = areaWidth / 2
+    const centerY = areaHeight / 2
 
-    // Grid layout
-    const cols = Math.max(1, Math.floor(availableW / (itemW + gap)))
-    const rows = Math.ceil(artifacts.length / cols)
+    // 1. Initial random placement
+    const positions = artifacts.map(a => ({
+        artifact: a,
+        x: rng.range(minX, maxX),
+        y: rng.range(minY, maxY)
+    }))
 
-    const cellW = availableW / cols
-    const cellH = Math.min((itemH + gap), availableH / Math.max(rows, 1))
+    // 2. Force-directed relaxation to separate overlapping artifacts
+    const iterations = 80 // Increased iterations for more stable settling
+    
+    // Minimum gap needed for player to walk between (player is ~30x30, so give 50px gap)
+    const walkGap = 50 
+    const repelDistX = itemW + walkGap 
+    const repelDistY = itemH + walkGap 
 
-    artifacts.forEach((artifact, index) => {
-        const col = index % cols
-        const row = Math.floor(index / cols)
+    for (let iter = 0; iter < iterations; iter++) {
+        for (let i = 0; i < positions.length; i++) {
+            let forceX = 0
+            let forceY = 0
+            const p1 = positions[i]
 
-        placements.push({
-            artifact,
-            x: margin + col * cellW + cellW / 2,
-            y: margin + row * cellH + cellH / 2,
-            width: itemW,
-            height: itemH,
-        })
-    })
+            // Repulsion from other artifacts
+            for (let j = 0; j < positions.length; j++) {
+                if (i === j) continue
+                const p2 = positions[j]
+                
+                const dx = p1.x - p2.x
+                const dy = p1.y - p2.y
+                
+                // Normalized distance considering rectangular shape
+                const normalizedDx = dx / repelDistX
+                const normalizedDy = dy / repelDistY
+                const normalizedDist = Math.sqrt(normalizedDx * normalizedDx + normalizedDy * normalizedDy) || 0.001
 
-    return placements
+                if (normalizedDist < 1.0) {
+                    // Stronger repulsion force to ensure gaps are respected
+                    const force = (1.0 - normalizedDist) / normalizedDist * 0.8
+                    forceX += dx * force
+                    forceY += dy * force
+                }
+            }
+
+            // Very weak central gravity to keep them from hugging the absolute edges, but weak enough to not squish them together
+            const cx = centerX - p1.x
+            const cy = centerY - p1.y
+            forceX += cx * 0.005
+            forceY += cy * 0.005
+
+            // Apply forces
+            p1.x += forceX
+            p1.y += forceY
+
+            // Constrain to bounds
+            p1.x = Math.max(minX, Math.min(maxX, p1.x))
+            p1.y = Math.max(minY, Math.min(maxY, p1.y))
+        }
+    }
+
+    // 3. Finalize placements
+    return positions.map(p => ({
+        artifact: p.artifact,
+        x: p.x,
+        y: p.y,
+        width: itemW,
+        height: itemH
+    }))
 }
