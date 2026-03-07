@@ -65,6 +65,10 @@
   pointer-events: auto;
   margin-bottom: 30px;
   margin-right: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: center;
 }
 
 .action-btn {
@@ -85,6 +89,15 @@
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
   transition: all 0.1s;
+}
+
+.action-btn.escape {
+  width: 60px;
+  height: 60px;
+  background-color: rgba(255, 0, 0, 0.2);
+  border-color: rgba(255, 0, 0, 0.4);
+  color: #ff4444;
+  font-size: 16px;
 }
 
 /* Adjustments for smaller screens */

@@ -91,6 +91,14 @@ export const MobileControls: React.FC = () => {
       {/* Action Buttons Container */}
       <div className="action-buttons">
         <button
+          className="action-btn escape"
+          onTouchStart={handleTouchStart('Escape')}
+          onTouchEnd={handleTouchEnd('Escape')}
+          onTouchCancel={handleTouchEnd('Escape')}
+        >
+          ESC
+        </button>
+        <button
           className="action-btn interact"
           onTouchStart={handleTouchStart('KeyJ')}
           onTouchEnd={handleTouchEnd('KeyJ')}
