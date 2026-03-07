@@ -302,9 +302,12 @@ export class BuildingScene implements Scene {
             this.container.addChild(this.enterPrompt)
         }
 
+        const isMobile = window.innerWidth < 600
+        this.enterPrompt.scale.set(isMobile ? 0.6 : 1)
+        
         this.enterPrompt.position.set(
             window.innerWidth / 2,
-            window.innerHeight - 80
+            isMobile ? window.innerHeight - 200 : window.innerHeight - 80
         )
         this.enterPrompt.visible = true
     }
