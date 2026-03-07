@@ -1,7 +1,8 @@
 import { Container, Graphics, Text, TextStyle } from 'pixi.js';
 import type { Building } from '../types/SeedTypes';
+import type { BiomePalette } from '../engine/CityGenerator/BiomeConfig';
 
-export function createBuildingSprite(building: Building, isEmpty: boolean = false): Container {
+export function createBuildingSprite(building: Building, isEmpty: boolean = false, biome?: BiomePalette): Container {
   const container = new Container();
 
   const size = clamp(
@@ -43,7 +44,47 @@ export function createBuildingSprite(building: Building, isEmpty: boolean = fals
     drawDashedLine(half - 3, half - 3, -half + 3, half - 3)    // bottom
     drawDashedLine(-half + 3, half - 3, -half + 3, -half + 3)  // left
     body.stroke()
+  } else if (biome) {
+    // Biome-themed building
+    const fill = biome.buildingFill
+    const fillAlpha = biome.buildingFillAlpha
+    const stroke = biome.buildingStroke
+    const strokeAlpha = biome.buildingStrokeAlpha
+
+    switch (biome.buildingShape) {
+      case 'rounded':
+        body
+          .roundRect(-size / 2, -size / 2, size, size, 8)
+          .fill({ color: fill, alpha: fillAlpha })
+          .stroke({ width: 3, color: stroke, alpha: strokeAlpha })
+        break
+
+      case 'diamond': {
+        // Diamond: rotated square
+        const hs = size / 2
+        body
+          .moveTo(0, -hs)
+          .lineTo(hs, 0)
+          .lineTo(0, hs)
+          .lineTo(-hs, 0)
+          .closePath()
+          .fill({ color: fill, alpha: fillAlpha })
+          .stroke({ width: 3, color: stroke, alpha: strokeAlpha })
+        break
+      }
+
+      default: // 'rect'
+        body
+          .rect(-size / 2, -size / 2, size, size)
+          .fill({ color: fill, alpha: fillAlpha })
+          .stroke({ width: 3, color: stroke, alpha: strokeAlpha })
+    }
+
+    // Biome accent detail — small colored dot at top center
+    body.circle(0, -size / 2 + 6, 3)
+    body.fill({ color: biome.accentColor, alpha: 0.7 })
   } else {
+    // Default fallback (no biome)
     body
       .rect(-size / 2, -size / 2, size, size)
       .fill(0x374151)

@@ -11,6 +11,9 @@ import { SeededRandom } from '../engine/SeededRandom'
 import { CityGenerator } from '../engine/CityGenerator'
 import { Minimap } from '../engine/Minimap'
 import { BuildingScene } from './BuildingScene'
+import { assignBiomes, type BiomePalette } from '../engine/CityGenerator/BiomeConfig'
+import { renderCityGround } from '../engine/CityGenerator/CityGroundRenderer'
+import { generateRoads, renderRoads } from '../engine/CityGenerator/RoadNetwork'
 
 export class CityScene implements Scene {
   container = new Container()
@@ -90,52 +93,51 @@ export class CityScene implements Scene {
     // --- 2. Setup Camera ---
     this.container.addChild(this.camera.container)
 
-    // --- 3. Generate Procedural Background ---
-    const ground = new Graphics()
-
-    // Draw base asphalt
-    ground.rect(0, 0, this.worldBounds.width, this.worldBounds.height).fill(0x1a1a1a)
-
-    // Draw grid lines (Cyberpunk style)
-    ground.setStrokeStyle({ width: 2, color: 0x333333, alpha: 0.5 })
-
-    // Optimization: Draw grid only within bounds
-    const gridSize = 100
-    for (let i = 0; i <= this.worldBounds.width; i += gridSize) {
-      ground.moveTo(i, 0).lineTo(i, this.worldBounds.height).stroke()
-    }
-    for (let i = 0; i <= this.worldBounds.height; i += gridSize) {
-      ground.moveTo(0, i).lineTo(this.worldBounds.width, i).stroke()
-    }
-
-    this.camera.container.addChild(ground)
-
-    // --- 4. Generate City Layout using CityGenerator for better district sizing ---
+    // --- 3. Generate City Layout ---
     const worldRng = new SeededRandom(this.city.spec.name);
     const cityGenerator = new CityGenerator(this.city, worldRng);
+    cityGenerator.generate('organic');
 
-    // Generate the city layout with positions
-    cityGenerator.generate('organic'); // Use organic layout for more natural distribution
-
-    // Get the generated positions
     const districtPositions = cityGenerator.getAllDistrictPositions();
     const buildingPositions = cityGenerator.getAllBuildingPositions();
 
-    // --- 5. Render Districts & Buildings ---
+    // --- 4. Assign Biomes to Districts ---
+    const biomeMap = assignBiomes(districts, worldRng)
+
+    // --- 5. Render Biome Ground ---
+    const districtRenderInfos = districts.map((district, _index) => {
+      const pos = districtPositions.get(district.spec.id)
+      const biome = biomeMap.get(district.spec.id)
+      if (!pos || !biome) return null
+      return { id: district.spec.id, position: pos, biome }
+    }).filter(Boolean) as { id: string; position: import('../engine/CityGenerator/types').DistrictPosition; biome: BiomePalette }[]
+
+    const groundContainer = renderCityGround(districtRenderInfos, worldW, worldH)
+    this.camera.container.addChild(groundContainer)
+
+    // --- 6. Generate & Render Roads ---
+    const roadSegments = generateRoads(
+      districts,
+      districtPositions,
+      buildingPositions,
+      (d) => this.getBuildings(d),
+      worldRng.range(0, 999999)
+    )
+    const roadContainer = renderRoads(roadSegments)
+    this.camera.container.addChild(roadContainer)
+
+    // --- 7. Render Districts & Buildings ---
     const cityContent = new Container()
-    // Position city content at (0,0) since CityGenerator positions are absolute
     this.camera.container.addChild(cityContent)
 
-    // Determine spawn point from city generator
+    // Determine spawn point
     const spawnPoint = cityGenerator.getSpawnPosition();
-    const adjustedSpawn = {
-      x: spawnPoint.x,
-      y: spawnPoint.y
-    };
+    const adjustedSpawn = { x: spawnPoint.x, y: spawnPoint.y };
 
-    // Render districts
-    this.districtNodes = this.getDistricts().map(district => {
+    // Build district node data for minimap
+    this.districtNodes = districts.map(district => {
       const pos = districtPositions.get(district.spec.id);
+      const biome = biomeMap.get(district.spec.id)
       if (!pos) return null;
 
       return {
@@ -146,34 +148,36 @@ export class CityScene implements Scene {
           width: pos.width,
           height: pos.height
         },
-        color: this.getDistrictColor(district, this.getDistricts().indexOf(district))
+        color: biome?.borderColor ?? 0x444444
       };
     }).filter(Boolean) as any[];
 
-    this.districtNodes.forEach((node: any, index) => {
+    // Render each district's border, label, and buildings
+    this.districtNodes.forEach((node: any) => {
       if (!node) return;
 
-      // District Floor
+      const biome = biomeMap.get(node.data.spec.id)
+
+      // District border — uses biome color
       const districtGfx = new Graphics()
       districtGfx
         .roundRect(node.bounds.x, node.bounds.y, node.bounds.width, node.bounds.height, 15)
-        .fill({ color: node.color, alpha: 0.2 })
-        .stroke({ width: 2, color: 0x444444, alpha: 0.8 })
+        .stroke({ width: 2, color: biome?.borderColor ?? 0x444444, alpha: biome?.borderAlpha ?? 0.5 })
 
       // District Label
       const label = new Text({
-        text: node.data.spec.name,
+        text: `${biome?.name ?? ''} · ${node.data.spec.name}`,
         style: {
           fontFamily: 'Inter',
-          fontSize: 16,
-          fill: 0x888888,
+          fontSize: 14,
+          fill: biome?.borderColor ?? 0x888888,
+          fontWeight: 'bold',
           wordWrap: true,
           wordWrapWidth: Math.max(50, node.bounds.width - 40)
         }
       })
       label.position.set(node.bounds.x + 20, node.bounds.y + 15)
 
-      // Hide label if district is too small to display it properly
       if (node.bounds.width < 80 || node.bounds.height < 60) {
         label.visible = false
       }
@@ -181,12 +185,11 @@ export class CityScene implements Scene {
       districtGfx.addChild(label)
       cityContent.addChild(districtGfx)
 
-      // Buildings - use the positions from CityGenerator
+      // Buildings
       const buildings = this.getBuildings(node.data)
-      const placements = buildings.map(building => {
+      const placements = buildings.map((building: Building) => {
         const pos = buildingPositions.get(building.spec.id);
         if (!pos) return null;
-
         return {
           building,
           bounds: {
@@ -204,9 +207,8 @@ export class CityScene implements Scene {
         const rooms = getBuildingRooms(item.building)
         const directArtifacts = getBuildingDirectArtifacts(item.building)
         const isEmpty = rooms.length === 0 && directArtifacts.length === 0
-        const bSprite = createBuildingSprite(item.building, isEmpty)
+        const bSprite = createBuildingSprite(item.building, isEmpty, biome)
 
-        // Position relative to cityContent - use the center position from CityGenerator
         bSprite.position.set(
           item.bounds.x + item.bounds.width / 2,
           item.bounds.y + item.bounds.height / 2
@@ -214,22 +216,16 @@ export class CityScene implements Scene {
 
         cityContent.addChild(bSprite)
 
-        // Collect building bounds for collision (NOT enterable - must use J key)
         const boundsWithBuilding = {
           x: item.bounds.x,
           y: item.bounds.y,
           width: item.bounds.width,
           height: item.bounds.height,
-          enterable: false,  // Buildings are solid - use J key to enter
-          buildingRef: item.building  // Store reference for entry detection
+          enterable: false,
+          buildingRef: item.building
         }
         this.buildingBounds.push(boundsWithBuilding as CollisionRect)
       })
-
-      // Set spawn point to center of first district if not already set
-      if (index === 0 && !this.player) {
-        // Already handled via cityGenerator above
-      }
     })
 
     // --- 6. Player Setup ---
@@ -446,13 +442,7 @@ export class CityScene implements Scene {
     return (district.spec as any).children?.filter((e: any) => e.kind === 'Building') || []
   }
 
-  private getDistrictColor(_district: District, index: number): number {
-    const colors = [
-      0x3b82f6, 0x10b981, 0xf59e0b, 0xef4444,
-      0x8b5cf6, 0xec4899, 0x14b8a6, 0xf97316,
-    ]
-    return colors[index % colors.length]
-  }
+  // getDistrictColor is no longer needed — biome palettes provide colors
 }
 
 // --- Building content helpers ---
