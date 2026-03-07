@@ -1,7 +1,7 @@
 // PixiApp.tsx
 import { extend, Application } from '@pixi/react';
 import { useRef, useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import api from './auth/api';
 import { Container } from 'pixi.js';
 import { SceneManager } from '../engine/SceneManager';
@@ -11,6 +11,7 @@ import type { RootResponse } from '../types/SeedTypes';
 import '@pixi/tilemap';
 
 import SampleData from '../assets/sample.json';
+import './PixiApp.css';
 extend({ Container });
 
 type LoadingPhase = 'connecting' | 'parsing' | 'downloading' | 'building' | 'done';
@@ -128,36 +129,49 @@ export default function PixiApp() {
     );
   }, [seed, root]);
 
+  const navigate = useNavigate();
+
   return (
     <>
-      <Application resizeTo={window} background="#ff00c8">
+      <Application resizeTo={window} background="#000000">
         <pixiContainer ref={setRoot} />
       </Application>
 
+      {/* Home Button Overlay - only show when not loading to avoid clutter */}
+      {!isLoading && !error && (
+        <button
+          onClick={() => navigate('/')}
+          className="home-btn"
+          title="Return to Home"
+        >
+          🏠
+        </button>
+      )}
+
       {isLoading && !error && (
-        <div style={overlayStyle}>
-          <div style={loadingCardStyle}>
-            <div style={titleStyle}>
+        <div className="overlay">
+          <div className="loading-card">
+            <div className="title">
               {repoUrl ? '🌍 Generating World' : '🌍 Loading World'}
             </div>
 
             {repoUrl && (
-              <div style={repoLabelStyle}>
+              <div className="repo-label">
                 {repoUrl.replace(/https?:\/\/(github\.com\/)?/, '').replace(/\.git$/, '')}
               </div>
             )}
 
             {/* Progress bar container */}
-            <div style={barContainerStyle}>
-              <div style={{ ...barFillStyle, width: `${progress}%` }}>
-                <div style={barShimmerStyle} />
+            <div className="bar-container">
+              <div className="bar-fill" style={{ width: `${progress}%` }}>
+                <div className="bar-shimmer" />
               </div>
             </div>
 
             {/* Percentage + phase */}
-            <div style={infoRowStyle}>
-              <span style={percentStyle}>{progress}%</span>
-              <span style={phaseStyle}>{PHASE_LABELS[phase]}</span>
+            <div className="info-row">
+              <span className="percent">{progress}%</span>
+              <span className="phase">{PHASE_LABELS[phase]}</span>
             </div>
           </div>
 
@@ -175,101 +189,20 @@ export default function PixiApp() {
       )}
 
       {error && (
-        <div style={overlayStyle}>
-          <div style={{ ...loadingCardStyle, borderColor: '#ef4444' }}>
-            <div style={{ ...titleStyle, color: '#ef4444' }}>❌ Error</div>
-            <div style={phaseStyle}>{error}</div>
+        <div className="overlay">
+          <div className="loading-card error">
+            <div className="title error">❌ Error</div>
+            <div className="phase">{error}</div>
+
+            <button
+              onClick={() => navigate('/')}
+              className="home-btn back-to-home-btn"
+            >
+              Back to Home
+            </button>
           </div>
         </div>
       )}
     </>
   );
 }
-
-// --- Styles ---
-const overlayStyle: React.CSSProperties = {
-  position: 'fixed',
-  inset: 0,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'rgba(0, 0, 0, 0.92)',
-  zIndex: 9999,
-};
-
-const loadingCardStyle: React.CSSProperties = {
-  width: '420px',
-  maxWidth: '90vw',
-  padding: '36px 32px',
-  background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
-  border: '1px solid #334155',
-  borderRadius: '16px',
-  boxShadow: '0 25px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(59, 130, 246, 0.1)',
-};
-
-const titleStyle: React.CSSProperties = {
-  fontFamily: "'Press Start 2P', monospace",
-  fontSize: '16px',
-  color: '#f1f5f9',
-  textAlign: 'center',
-  marginBottom: '8px',
-};
-
-const repoLabelStyle: React.CSSProperties = {
-  fontFamily: 'monospace',
-  fontSize: '12px',
-  color: '#64748b',
-  textAlign: 'center',
-  marginBottom: '24px',
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
-};
-
-const barContainerStyle: React.CSSProperties = {
-  width: '100%',
-  height: '14px',
-  background: '#1e293b',
-  borderRadius: '7px',
-  border: '1px solid #334155',
-  overflow: 'hidden',
-  marginBottom: '14px',
-};
-
-const barFillStyle: React.CSSProperties = {
-  height: '100%',
-  background: 'linear-gradient(90deg, #3b82f6, #8b5cf6, #3b82f6)',
-  backgroundSize: '200% 100%',
-  borderRadius: '7px',
-  transition: 'width 0.4s ease-out',
-  position: 'relative',
-  overflow: 'hidden',
-  minWidth: '0%',
-};
-
-const barShimmerStyle: React.CSSProperties = {
-  position: 'absolute',
-  inset: 0,
-  background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent)',
-  animation: 'shimmer 1.5s infinite',
-};
-
-const infoRowStyle: React.CSSProperties = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-};
-
-const percentStyle: React.CSSProperties = {
-  fontFamily: "'Press Start 2P', monospace",
-  fontSize: '14px',
-  color: '#3b82f6',
-  fontWeight: 'bold',
-};
-
-const phaseStyle: React.CSSProperties = {
-  fontFamily: 'monospace',
-  fontSize: '12px',
-  color: '#94a3b8',
-  animation: 'pulse 2s infinite',
-};

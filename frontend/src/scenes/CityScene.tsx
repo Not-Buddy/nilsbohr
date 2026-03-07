@@ -1,7 +1,7 @@
 // CityScene.ts
 import { Container, Text, Graphics, Rectangle } from 'pixi.js'
 import type { Scene } from '../types/Types'
-import type { City, District, Building, WorldSeed, ProjectResponse } from '../types/SeedTypes'
+import type { City, District, Building, Room, Artifact, WorldSeed, ProjectResponse } from '../types/SeedTypes'
 import { SceneManager } from '../engine/SceneManager'
 import { Player, type CollisionRect } from '../sprites/Player'
 import { Input } from '../engine/Inputs'
@@ -28,6 +28,7 @@ export class CityScene implements Scene {
   private buildingBounds: CollisionRect[] = []  // For collision detection (with buildingRef)
   private nearbyBuilding?: Building
   private enterPrompt?: Container
+  private emptyPrompt?: Container
   private manager: SceneManager
   private spawnPosition?: { x: number; y: number }
   private worldSeed?: WorldSeed | ProjectResponse
@@ -200,7 +201,10 @@ export class CityScene implements Scene {
       placements.forEach((item: any) => {
         if (!item) return;
 
-        const bSprite = createBuildingSprite(item.building)
+        const rooms = getBuildingRooms(item.building)
+        const directArtifacts = getBuildingDirectArtifacts(item.building)
+        const isEmpty = rooms.length === 0 && directArtifacts.length === 0
+        const bSprite = createBuildingSprite(item.building, isEmpty)
 
         // Position relative to cityContent - use the center position from CityGenerator
         bSprite.position.set(
@@ -274,6 +278,7 @@ export class CityScene implements Scene {
 
     // Check for nearby buildings (for entry)
     this.nearbyBuilding = undefined
+    let nearbyIsEmpty = false
     const playerX = this.player.sprite.x
     const playerY = this.player.sprite.y
 
@@ -289,13 +294,20 @@ export class CityScene implements Scene {
         playerY < bounds.y + bounds.height + 50
 
       if (nearBottom) {
-        this.nearbyBuilding = building
+        const rooms = getBuildingRooms(building)
+        const directArtifacts = getBuildingDirectArtifacts(building)
+        if (rooms.length === 0 && directArtifacts.length === 0) {
+          nearbyIsEmpty = true
+        } else {
+          this.nearbyBuilding = building
+        }
         break
       }
     }
 
     // Show/hide entry prompt
     if (this.nearbyBuilding) {
+      this.hideEmptyBuildingPrompt()
       this.showEnterPrompt()
 
       if (this.input.isJustPressed('KeyJ')) {
@@ -311,8 +323,12 @@ export class CityScene implements Scene {
         ))
         return
       }
+    } else if (nearbyIsEmpty) {
+      this.hideEnterPrompt()
+      this.showEmptyBuildingPrompt()
     } else {
       this.hideEnterPrompt()
+      this.hideEmptyBuildingPrompt()
     }
 
     // ESC to return to world
@@ -364,6 +380,43 @@ export class CityScene implements Scene {
     }
   }
 
+  private showEmptyBuildingPrompt(): void {
+    if (!this.emptyPrompt) {
+      this.emptyPrompt = new Container()
+
+      const bg = new Graphics()
+      bg.roundRect(-150, -25, 300, 50, 10)
+      bg.fill({ color: 0x000000, alpha: 0.8 })
+      bg.stroke({ width: 2, color: 0xef4444 })
+      this.emptyPrompt.addChild(bg)
+
+      const text = new Text({
+        text: '⚠ Empty building — cannot enter',
+        style: {
+          fontFamily: 'monospace',
+          fontSize: 14,
+          fill: 0xef4444,
+        }
+      })
+      text.anchor.set(0.5, 0.5)
+      this.emptyPrompt.addChild(text)
+
+      this.container.addChild(this.emptyPrompt)
+    }
+
+    this.emptyPrompt.position.set(
+      window.innerWidth / 2,
+      window.innerHeight - 80
+    )
+    this.emptyPrompt.visible = true
+  }
+
+  private hideEmptyBuildingPrompt(): void {
+    if (this.emptyPrompt) {
+      this.emptyPrompt.visible = false
+    }
+  }
+
   unmount() {
     window.removeEventListener('resize', this.handleResize)
     this.input?.destroy()
@@ -400,4 +453,22 @@ export class CityScene implements Scene {
     ]
     return colors[index % colors.length]
   }
+}
+
+// --- Building content helpers ---
+
+function getBuildingRooms(building: Building): Room[] {
+  const spec = building.spec as any
+  if (spec.children && Array.isArray(spec.children)) {
+    return spec.children.filter((e: any) => e.kind === 'Room')
+  }
+  return []
+}
+
+function getBuildingDirectArtifacts(building: Building): Artifact[] {
+  const spec = building.spec as any
+  if (spec.children && Array.isArray(spec.children)) {
+    return spec.children.filter((e: any) => e.kind === 'Artifact')
+  }
+  return []
 }

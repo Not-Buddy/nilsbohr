@@ -54,7 +54,7 @@ export default function MainCompo() {
                 Turn any GitHub repository into an interactive game designed to help you understand complex codebases easily.
               </p>
               <p className="hint-text">
-                You can also replace <code className="code-hint">hub</code> with <code className="code-hint">gamefiy</code> in any GitHub URL.
+                You can also replace <code className="code-hint">hub</code> with <code className="code-hint">gamefiy</code> in any GitHub URL (Not implemented yet).
               </p>
             </div>
 
