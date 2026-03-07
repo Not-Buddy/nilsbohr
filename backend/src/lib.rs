@@ -9,6 +9,7 @@ pub mod symbol_table;
 use axum::{Router, response::IntoResponse, routing::get, routing::post};
 use std::sync::Arc;
 use tower_http::cors::{AllowOrigin, CorsLayer};
+use http::{header, Method};
 
 async fn health_check() -> impl IntoResponse {
     axum::Json(serde_json::json!({"status": "healthy"}))
@@ -34,19 +35,25 @@ pub fn build_app(state: Arc<auth::AppState>) -> Router {
             CorsLayer::new()
                 .allow_origin(AllowOrigin::predicate(
                     |origin: &http::HeaderValue, _request_parts: &http::request::Parts| {
-                        origin.as_bytes().starts_with(b"http://localhost:")
-                            || origin.as_bytes().starts_with(b"https://nilsbohr")
-                            || origin.as_bytes() == b"http://localhost"
-                            || origin
-                                .as_bytes()
-                                .starts_with(b"https://nilsbohr.vercel.app")
+                        let origin_bytes = origin.as_bytes();
+                        origin_bytes.starts_with(b"http://localhost:")
+                            || origin_bytes.starts_with(b"https://nilsbohr")
+                            || origin_bytes == b"http://localhost"
                     },
                 ))
-                .allow_methods([http::Method::GET, http::Method::POST, http::Method::OPTIONS])
+                .allow_methods([
+                    Method::GET, 
+                    Method::POST, 
+                    Method::OPTIONS, 
+                    Method::PUT, 
+                    Method::DELETE
+                ])
                 .allow_headers([
-                    http::header::CONTENT_TYPE,
-                    http::header::AUTHORIZATION,
-                    http::header::COOKIE,
+                    header::CONTENT_TYPE,
+                    header::AUTHORIZATION,
+                    header::COOKIE,
+                    header::ACCEPT,
+                    header::ORIGIN,
                 ])
                 .allow_credentials(true),
         )
