@@ -206,22 +206,47 @@
 }
 
 /* Responsive */
-@media (max-width: 480px) {
+@media (max-width: 768px) {
   .landing-card {
     padding: 36px 24px;
+    width: 85vw;
+  }
+}
+
+@media (max-width: 480px) {
+  .landing-container {
+    padding: 16px;
+  }
+
+  .landing-card {
+    padding: 24px 16px;
+    width: 100%;
   }
 
   .landing-title {
-    font-size: 20px;
+    font-size: 18px;
+    margin-bottom: 12px;
+  }
+
+  .landing-tagline {
+    font-size: 12px;
+    margin-bottom: 20px;
   }
 
   .landing-login-btn {
-    font-size: 9px;
-    padding: 14px 20px;
+    font-size: 8px;
+    padding: 12px 16px;
+    gap: 8px;
   }
 
   .landing-feature-pill {
     font-size: 6px;
-    padding: 5px 10px;
+    padding: 4px 8px;
+  }
+  
+  .landing-features {
+    gap: 6px;
+    margin-bottom: 24px;
   }
 }
+

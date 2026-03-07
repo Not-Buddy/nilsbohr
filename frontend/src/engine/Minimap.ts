@@ -127,10 +127,10 @@ export class Minimap {
     /**
      * Position minimap on screen (call after resize)
      */
-    positionOnScreen(screenWidth: number, screenHeight: number): void {
+    positionOnScreen(screenWidth: number, _screenHeight: number): void {
         this.container.position.set(
             screenWidth - this.config.size - this.config.margin,
-            screenHeight - this.config.size - this.config.margin
+            this.config.margin // Move to top-right instead of bottom-right
         )
     }
 

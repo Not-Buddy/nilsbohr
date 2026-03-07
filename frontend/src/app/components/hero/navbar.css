@@ -105,3 +105,40 @@
           color: #fff;
           box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
         }
+
+        /* Responsive */
+        @media (max-width: 600px) {
+          .nav {
+            padding: 0 12px;
+            height: auto;
+            min-height: 56px;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            padding-top: 8px;
+            padding-bottom: 8px;
+          }
+
+          .nav-brand {
+            padding: 6px 10px;
+          }
+
+          .nav h2 {
+            font-size: 1rem;
+          }
+
+          .nav-user {
+            width: 100%;
+            justify-content: center;
+            margin-top: 4px;
+          }
+
+          .nav-username {
+            font-size: 8px;
+          }
+          
+          .nav-logout-btn {
+            font-size: 7px;
+            padding: 6px 10px;
+          }
+        }

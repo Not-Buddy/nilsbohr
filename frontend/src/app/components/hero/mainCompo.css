@@ -269,6 +269,48 @@
   }
 }
 
+@media (max-width: 600px) {
+  .main-container {
+    flex-direction: column-reverse; /* Sidebar goes to bottom on small screens */
+    min-height: auto;
+    overflow-y: auto;
+  }
+  
+  .repo-sidebar {
+    flex: none;
+    width: 100%;
+    max-height: 30vh;
+    padding: 15px;
+    border-top: 2px solid rgba(180, 124, 87, 0.4);
+  }
+
+  .content-wrapper {
+    padding: 10px;
+    flex: none;
+  }
+
+  .card-container {
+    min-height: 400px; /* Give it enough height to hold content when aspect ratio fails */
+  }
+
+  .title {
+    font-size: 22px;
+  }
+
+  .subtitle {
+    font-size: 12px;
+  }
+
+  .pixi-btn {
+    top: 10px;
+    bottom: auto;
+    transform: none;
+    right: 10px;
+    font-size: 10px;
+    padding: 6px 12px;
+  }
+}
+
 @media (max-width: 480px) {
   .input-wrapper {
     flex-direction: column;
@@ -290,10 +332,10 @@
 }
 
 .pixi-btn {
-  position: fixed;
+  position: absolute;
   right: 20px;
-  top: 50%;
-  transform: translateY(-50%);
+  top: 20px;
+  transform: none;
 
   padding: 12px 24px;
   background: #FCBD80;

@@ -9,6 +9,7 @@ import { WorldScene } from '../scenes/WorldScene';
 import type { WorldSeed } from '../types/SeedTypes';
 import type { RootResponse } from '../types/SeedTypes';
 import '@pixi/tilemap';
+import { MobileControls } from './components/MobileControls';
 
 import SampleData from '../assets/sample.json';
 import './PixiApp.css';
@@ -136,6 +137,11 @@ export default function PixiApp() {
       <Application resizeTo={window} background="#000000">
         <pixiContainer ref={setRoot} />
       </Application>
+
+      {/* Mobile Controls Overlay */}
+      {!isLoading && !error && (
+        <MobileControls />
+      )}
 
       {/* Home Button Overlay - only show when not loading to avoid clutter */}
       {!isLoading && !error && (
