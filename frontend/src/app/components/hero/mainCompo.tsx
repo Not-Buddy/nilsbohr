@@ -39,11 +39,8 @@ export default function MainCompo() {
         <div
           className="card-container"
           style={{
-            backgroundImage: `url(${backgroundCard})`,
-            backgroundSize: 'contain',
-            backgroundRepeat: 'no-repeat',
-            backgroundPosition: 'center',
-          }}
+            '--bg-image': `url(${backgroundCard})`,
+          } as React.CSSProperties}
         >
           {/* Card Content */}
           <div className="card-content">
