@@ -1,41 +1,41 @@
 use crate::models::{GameEntity, Parameter};
-use tracing::instrument;
+use super::parser_utils;
 
+use super::traits::LanguageParser;
+use super::registry::RustParser;
+
+use tracing::instrument;
 use tree_sitter::{Node, Parser};
 
-/// Parse Rust code and return (entities, imports)
-pub fn parse_rust_code(source: &str, parent_id: &str) -> (Vec<GameEntity>, Vec<String>) {
-    let mut parser = Parser::new();
-    parser
-        .set_language(tree_sitter_rust::language())
-        .expect("Error loading Rust grammar");
+impl LanguageParser for RustParser {
+    fn parse(source: &str, parent_id: &str) -> (Vec<GameEntity>, Vec<String>) {
+        let mut parser = Parser::new();
+        parser
+            .set_language(tree_sitter_rust::language())
+            .expect("Error loading Rust grammar");
 
-    let tree = parser.parse(source, None).unwrap();
-    let mut imports = Vec::new();
-    let entities = parse_rust_node(tree.root_node(), source.as_bytes(), parent_id, &mut imports);
-    (entities, imports)
-}
+        let tree = parser.parse(source, None).unwrap();
+        let mut imports = Vec::new();
+        let entities = parse_rust_node(tree.root_node(), source.as_bytes(), parent_id, &mut imports);
+        (entities, imports)
+    }
 
-fn get_text<'a>(node: Node<'a>, source: &'a [u8]) -> String {
-    node.utf8_text(source).unwrap_or("").to_string()
+    fn extensions() -> &'static [&'static str] {
+        &["rs"]
+    }
 }
 
 fn is_public(node: Node, source: &[u8]) -> bool {
     node.children(&mut node.walk()).any(|child| {
-        child.kind() == "visibility_modifier" && get_text(child, source).starts_with("pub")
+        child.kind() == "visibility_modifier"
+            && parser_utils::get_text(child, source).starts_with("pub")
     })
 }
 
 fn is_async(node: Node, source: &[u8]) -> bool {
     node.children(&mut node.walk())
         .any(|child| child.kind() == "async")
-        || get_text(node, source).contains("async fn")
-}
-
-fn count_lines(node: Node) -> u32 {
-    let start = node.start_position().row;
-    let end = node.end_position().row;
-    (end - start + 1) as u32
+        || parser_utils::get_text(node, source).contains("async fn")
 }
 
 fn extract_parameters(node: Node, source: &[u8]) -> Vec<Parameter> {
@@ -46,11 +46,11 @@ fn extract_parameters(node: Node, source: &[u8]) -> Vec<Parameter> {
             if child.kind() == "parameter" {
                 let name = child
                     .child_by_field_name("pattern")
-                    .map(|n| get_text(n, source))
+                    .map(|n| parser_utils::get_text(n, source))
                     .unwrap_or_default();
                 let datatype = child
                     .child_by_field_name("type")
-                    .map(|n| get_text(n, source))
+                    .map(|n| parser_utils::get_text(n, source))
                     .unwrap_or_else(|| "inferred".to_string());
                 if !name.is_empty() && name != "self" && name != "&self" && name != "&mut self" {
                     params.push(Parameter { name, datatype });
@@ -63,86 +63,42 @@ fn extract_parameters(node: Node, source: &[u8]) -> Vec<Parameter> {
 
 fn extract_return_type(node: Node, source: &[u8]) -> Option<String> {
     node.child_by_field_name("return_type")
-        .map(|n| get_text(n, source).trim_start_matches("-> ").to_string())
-}
-
-fn extract_function_calls(node: Node, source: &[u8], _parent_id: &str) -> Vec<String> {
-    let mut calls = Vec::new();
-    extract_calls_recursive(node, source, &mut calls);
-    // Convert simple function names to potential IDs
-    calls
-        .into_iter()
-        .filter(|c| !c.is_empty() && !is_builtin(c))
-        .collect()
-}
-
-fn extract_calls_recursive(node: Node, source: &[u8], calls: &mut Vec<String>) {
-    if node.kind() == "call_expression"
-        && let Some(func_node) = node.child_by_field_name("function")
-    {
-        let func_name = get_text(func_node, source);
-        // Clean up the function name
-        let clean_name = func_name
-            .split("::")
-            .last()
-            .unwrap_or(&func_name)
-            .split('.')
-            .next_back()
-            .unwrap_or(&func_name)
-            .to_string();
-        if !clean_name.is_empty() {
-            calls.push(clean_name);
-        }
-    }
-
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        extract_calls_recursive(child, source, calls);
-    }
+        .map(|n| parser_utils::get_text(n, source).trim_start_matches("-> ").to_string())
 }
 
 fn is_builtin(name: &str) -> bool {
-    // Check for common specific methods
     matches!(
         name,
-        // --- Macros ---
         "println" | "print" | "eprintln" | "eprint" | "format" | "write" | "writeln" |
         "panic" | "todo" | "unimplemented" | "unreachable" |
         "assert" | "assert_eq" | "assert_ne" | "debug_assert" | "debug_assert_eq" |
         "dbg" | "vec" | "include_str" | "include_bytes" | "env" |
-
-        // --- Constructors & Conversion ---
         "new" | "default" | "from" | "into" | "try_from" | "try_into" |
         "clone" | "to_string" | "to_owned" | "as_ref" | "as_mut" | "deref" |
         "as_str" | "as_bytes" | "into_inner" |
-
-        // --- Option / Result Patterns ---
         "Some" | "None" | "Ok" | "Err" |
         "unwrap" | "expect" | "unwrap_or" | "unwrap_or_else" | "unwrap_or_default" |
         "is_some" | "is_none" | "is_ok" | "is_err" | "ok" | "err" | "map_err" |
         "transpose" | "and_then" | "or_else" |
-
-        // --- Iterators & Collections ---
         "iter" | "iter_mut" | "into_iter" | "collect" |
         "map" | "filter" | "reduce" | "fold" | "for_each" | "inspect" |
         "find" | "any" | "all" | "enumerate" | "zip" | "chain" | "take" | "skip" |
         "flat_map" | "flatten" | "cycle" | "peekable" |
         "push" | "pop" | "insert" | "remove" | "get" | "get_mut" |
         "len" | "is_empty" | "contains" | "clear" | "sort" | "sort_by" |
-
-        // --- Strings ---
         "trim" | "split" | "lines" | "chars" | "bytes" |
         "replace" | "starts_with" | "ends_with" | "to_lowercase" | "to_uppercase" |
-
-        // --- Concurrency / Async ---
         "lock" | "read" | "await" | "spawn" | "block_on"
     )
-    // Also filter standard types acting as constructors (e.g. Vec::new)
-    // Note: The parser logic usually splits '::', sending only 'new', but just in case:
     || name.starts_with("std::")
     || name.starts_with("core::")
     || matches!(name, "Vec" | "String" | "Option" | "Result" | "Box" | "Rc" | "Arc" | "Mutex" | "RwLock")
 }
+
+const RS_COMPLEXITY_KINDS: &[&str] = &[
+    "if_expression", "match_expression", "while_expression", "for_expression",
+    "loop_expression", "?", "match_arm",
+];
 
 #[instrument(skip(node, source, imports), level = "trace")]
 fn parse_rust_node(
@@ -158,29 +114,26 @@ fn parse_rust_node(
         let kind = child.kind();
 
         match kind {
-            // --- IMPORTS ---
             "use_declaration" => {
-                let import_path = get_text(child, source)
+                let import_path = parser_utils::get_text(child, source)
                     .trim_start_matches("use ")
                     .trim_end_matches(';')
                     .to_string();
-                // Convert crate imports to potential file paths
                 if import_path.starts_with("crate::") {
                     let path = import_path.replace("crate::", "src/").replace("::", "/");
                     imports.push(format!("{}.rs", path));
                 }
             }
 
-            // --- BUILDINGS (Structs, Enums, Traits) ---
             "struct_item" | "enum_item" | "trait_item" => {
                 let name = child
                     .child_by_field_name("name")
-                    .map(|n| get_text(n, source))
+                    .map(|n| parser_utils::get_text(n, source))
                     .unwrap_or_else(|| "Anonymous".into());
 
-                let id = format!("{}::{}", parent_id, name);
+                let id = format!("{parent_id}::{name}");
                 let children = parse_rust_node(child, source, &id, imports);
-                let loc = count_lines(child);
+                let loc = parser_utils::count_lines(child);
 
                 entities.push(GameEntity::Building {
                     id,
@@ -194,41 +147,35 @@ fn parse_rust_node(
                 });
             }
 
-            // --- IMPL BLOCKS (treated as Buildings) ---
             "impl_item" => {
-                // Handle both inherent impls (impl Type) and trait impls (impl Trait for Type)
                 let trait_node = child.child_by_field_name("trait");
                 let self_type_node = child.child_by_field_name("type");
 
                 let name = if let Some(trait_node) = trait_node {
-                    // This is a trait implementation: impl Trait for Type
-                    let trait_name = get_text(trait_node, source);
+                    let trait_name = parser_utils::get_text(trait_node, source);
                     let self_type_name = self_type_node
-                        .map(|n| get_text(n, source))
+                        .map(|n| parser_utils::get_text(n, source))
                         .unwrap_or_else(|| "unknown".into());
-                    format!("impl {} for {}", trait_name, self_type_name)
+                    format!("impl {trait_name} for {self_type_name}")
                 } else if let Some(self_type_node) = self_type_node {
-                    // This is an inherent implementation: impl Type
-                    let self_type_name = get_text(self_type_node, source);
-                    format!("impl {}", self_type_name)
+                    let self_type_name = parser_utils::get_text(self_type_node, source);
+                    format!("impl {self_type_name}")
                 } else {
-                    // Fallback if we can't determine the type
                     "impl unknown".to_string()
                 };
 
                 let id = format!(
-                    "{}::{}",
-                    parent_id,
+                    "{parent_id}::{}",
                     name.replace(' ', "_").replace(['<', '>', ':'], "_")
                 );
                 let children = parse_rust_node(child, source, &id, imports);
-                let loc = count_lines(child);
+                let loc = parser_utils::count_lines(child);
 
                 entities.push(GameEntity::Building {
                     id,
                     name,
                     building_type: "impl".to_string(),
-                    is_public: false, // Impls are not directly public/private like other items
+                    is_public: false,
                     loc,
                     imports: vec![],
                     children,
@@ -236,40 +183,34 @@ fn parse_rust_node(
                 });
             }
 
-            // --- ROOMS (Functions) ---
             "function_item" => {
                 let name = child
                     .child_by_field_name("name")
-                    .map(|n| get_text(n, source))
+                    .map(|n| parser_utils::get_text(n, source))
                     .unwrap_or_else(|| "fn".into());
 
-                let id = format!("{}::{}", parent_id, name);
+                let id = format!("{parent_id}::{name}");
                 let is_main = name == "main";
-                let loc = count_lines(child);
+                let loc = parser_utils::count_lines(child);
                 let parameters = extract_parameters(child, source);
                 let return_type = extract_return_type(child, source);
                 let is_async_fn = is_async(child, source);
-                let visibility = if is_public(child, source) {
-                    "public"
-                } else {
-                    "private"
-                };
+                let visibility = if is_public(child, source) { "public" } else { "private" };
 
-                // Get function calls from body
-                let calls = if let Some(body) = child.child_by_field_name("body") {
-                    extract_function_calls(body, source, &id)
-                } else {
-                    vec![]
-                };
+                let calls = child
+                    .child_by_field_name("body")
+                    .map(|body| {
+                        parser_utils::extract_function_calls(body, source, "call_expression", is_builtin)
+                    })
+                    .unwrap_or_default();
 
-                // Recurse for inner items
                 let mut contents = Vec::new();
                 if let Some(body) = child.child_by_field_name("body") {
                     contents.extend(parse_rust_node(body, source, &id, imports));
                 }
 
-                // Calculate complexity based on control flow
-                let complexity = calculate_complexity(child, source);
+                let complexity =
+                    parser_utils::calculate_complexity(child, RS_COMPLEXITY_KINDS);
 
                 entities.push(GameEntity::Room {
                     id,
@@ -288,7 +229,6 @@ fn parse_rust_node(
                 });
             }
 
-            // --- ARTIFACTS (Variables) ---
             "let_declaration" | "const_item" | "static_item" => {
                 let name_node = child
                     .child_by_field_name("pattern")
@@ -298,12 +238,12 @@ fn parse_rust_node(
                 let value_node = child.child_by_field_name("value");
 
                 if let Some(n) = name_node {
-                    let name = get_text(n, source);
+                    let name = parser_utils::get_text(n, source);
                     let datatype = type_node
-                        .map(|t| get_text(t, source))
+                        .map(|t| parser_utils::get_text(t, source))
                         .unwrap_or_else(|| "inferred".into());
-                    let id = format!("{}::{}", parent_id, name);
-                    let text = get_text(child, source);
+                    let id = format!("{parent_id}::{name}");
+                    let text = parser_utils::get_text(child, source);
                     let is_mutable = text.contains("mut");
 
                     let artifact_type = match kind {
@@ -312,14 +252,10 @@ fn parse_rust_node(
                         _ => "variable",
                     };
 
-                    // Get abbreviated value hint
                     let value_hint = value_node.map(|v| {
-                        let val = get_text(v, source);
+                        let val = parser_utils::get_text(v, source);
                         if val.len() > 30 {
-                            {
-                                let truncated = val.chars().take(27).collect::<String>();
-                                format!("{}...", truncated)
-                            }
+                            format!("{}...", val.chars().take(27).collect::<String>())
                         } else {
                             val
                         }
@@ -337,19 +273,18 @@ fn parse_rust_node(
                 }
             }
 
-            // --- FIELD DECLARATIONS (inside structs) ---
             "field_declaration" => {
                 let name = child
                     .child_by_field_name("name")
-                    .map(|n| get_text(n, source))
+                    .map(|n| parser_utils::get_text(n, source))
                     .unwrap_or_default();
                 let datatype = child
                     .child_by_field_name("type")
-                    .map(|t| get_text(t, source))
+                    .map(|t| parser_utils::get_text(t, source))
                     .unwrap_or_else(|| "unknown".into());
 
                 if !name.is_empty() {
-                    let id = format!("{}::{}", parent_id, name);
+                    let id = format!("{parent_id}::{name}");
                     entities.push(GameEntity::Artifact {
                         id,
                         name,
@@ -372,31 +307,6 @@ fn parse_rust_node(
     entities
 }
 
-/// Calculate cyclomatic complexity based on control flow nodes
-fn calculate_complexity(node: Node, _source: &[u8]) -> u32 {
-    let mut complexity = 1; // Base complexity
-    count_complexity_nodes(node, &mut complexity);
-    complexity
-}
-
-fn count_complexity_nodes(node: Node, complexity: &mut u32) {
-    match node.kind() {
-        "if_expression" | "match_expression" | "while_expression" | "for_expression"
-        | "loop_expression" | "?" => {
-            *complexity += 1;
-        }
-        "match_arm" => {
-            *complexity += 1;
-        }
-        _ => {}
-    }
-
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        count_complexity_nodes(child, complexity);
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -409,7 +319,6 @@ mod tests {
             age: u32,
         }
 
-        // Inherent implementation
         impl Person {
             fn new(name: String, age: u32) -> Self {
                 Person { name, age }
@@ -424,7 +333,6 @@ mod tests {
             fn greet(&self) -> String;
         }
 
-        // Trait implementation
         impl Greet for Person {
             fn greet(&self) -> String {
                 format!("Hello, my name is {}", self.name)
@@ -432,9 +340,8 @@ mod tests {
         }
         "#;
 
-        let (entities, _imports) = parse_rust_code(source_code, "test_file");
+        let (entities, _imports) = RustParser::parse(source_code, "test_file");
 
-        // Look for impl blocks in the parsed entities
         let impl_blocks: Vec<_> = entities
             .iter()
             .filter(|entity| {
@@ -448,7 +355,6 @@ mod tests {
 
         assert_eq!(impl_blocks.len(), 2, "Should find 2 impl blocks");
 
-        // Check that we have both an inherent impl and a trait impl
         let mut has_inherent_impl = false;
         let mut has_trait_impl = false;
 

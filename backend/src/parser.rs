@@ -1,7 +1,5 @@
 use crate::git_layer::GitLayer;
-use crate::languages::{
-    c_parser, cpp_parser, java_parser, js_parser, py_parser, rs_parser, ts_parser,
-};
+use crate::languages::registry;
 use crate::models::{CityStats, GameEntity, Route, RouteType, WorldMeta, WorldSeed};
 use crate::symbol_table::SymbolTable;
 use rayon::prelude::*;
@@ -28,37 +26,11 @@ fn parse_single_file(path: &Path, relative_path: &str, root_path: &Path) -> Opti
     let loc = source_code.lines().count() as u32;
     let file_id = relative_path.to_string();
 
-    let (children, imports, lang_tag) = match ext {
-        "rs" => {
-            let (entities, imports) = rs_parser::parse_rust_code(&source_code, &file_id);
-            (entities, imports, "rs")
-        }
-        "ts" | "tsx" => {
-            let (entities, imports) = ts_parser::parse_typescript_code(&source_code, &file_id);
-            (entities, imports, "ts")
-        }
-        "js" | "jsx" => {
-            let (entities, imports) = js_parser::parse_javascript_code(&source_code, &file_id);
-            (entities, imports, "js")
-        }
-        "py" => {
-            let (entities, imports) = py_parser::parse_python_code(&source_code, &file_id);
-            (entities, imports, "py")
-        }
-        "cpp" | "cc" | "cxx" | "hpp" => {
-            let (entities, imports) = cpp_parser::parse_cpp_code(&source_code, &file_id);
-            (entities, imports, "cpp")
-        }
-        "c" | "h" => {
-            let (entities, imports) = c_parser::parse_c_code(&source_code, &file_id);
-            (entities, imports, "c")
-        }
-        "java" => {
-            let (entities, imports) = java_parser::parse_java_code(&source_code, &file_id);
-            (entities, imports, "java")
-        }
-        _ => return None,
-    };
+    let (children, imports, lang_tag) =
+        match registry::parse_by_extension(ext, &source_code, &file_id) {
+            Some((entities, imports)) => (entities, imports, normalize_lang_tag(ext)),
+            None => return None,
+        };
 
     let file_entity = GameEntity::Building {
         id: file_id,
@@ -437,4 +409,13 @@ fn reconstruct_hierarchy(files: Vec<ParsedFile>) -> Vec<GameEntity> {
         result.push(subdir.to_entity());
     }
     result
+}
+
+fn normalize_lang_tag(ext: &str) -> String {
+    match ext {
+        "tsx" => "ts".into(),
+        "jsx" => "js".into(),
+        "h" | "hpp" => "cpp".into(),
+        other => other.into(),
+    }
 }
