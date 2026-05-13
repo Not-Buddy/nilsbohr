@@ -6,24 +6,24 @@ use std::collections::HashMap;
 use tracing::{info, warn};
 
 use super::models::{EntityDoc, ParsedWorldDoc, RouteDoc};
+use crate::error::AppError;
 use crate::models::{GameEntity, Route, WorldMeta, WorldSeed};
 
 pub async fn get_cached_world(
     db: &Database,
     repository_id: ObjectId,
     commit_hash: &str,
-) -> Result<Option<WorldSeed>, String> {
+) -> Result<Option<WorldSeed>, AppError> {
     let worlds_collection = db.collection::<ParsedWorldDoc>("parsed_worlds");
     let world = worlds_collection
         .find_one(doc! { "repository_id": repository_id, "commit_hash": commit_hash })
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
 
     let Some(world_doc) = world else {
         return Ok(None);
     };
 
-    let world_id = world_doc.id.ok_or("world doc has no id")?;
+    let world_id = world_doc.id.ok_or_else(|| AppError::Internal("world doc has no id".into()))?;
 
     let entities = match fetch_entities(db, world_id).await {
         Ok(e) => e,
@@ -65,7 +65,7 @@ pub async fn store_world(
     commit_hash: &str,
     world_seed: &WorldSeed,
     _total_loc: u32,
-) -> Result<ObjectId, String> {
+) -> Result<ObjectId, AppError> {
     let parsed_at = Utc::now().to_rfc3339();
 
     let world_doc = ParsedWorldDoc {
@@ -86,12 +86,11 @@ pub async fn store_world(
     let worlds_collection = db.collection::<ParsedWorldDoc>("parsed_worlds");
     let insert_result = worlds_collection
         .insert_one(&world_doc)
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
     let world_id = insert_result
         .inserted_id
         .as_object_id()
-        .ok_or("Failed to get world ID")?;
+        .ok_or_else(|| AppError::Internal("Failed to get world ID".into()))?;
 
     let (entities, entity_count) = flatten_entities(&world_seed.cities, world_id);
     let routes = build_route_docs(&world_seed.highways, world_id);
@@ -102,8 +101,7 @@ pub async fn store_world(
         for chunk in entities.chunks(500) {
             entities_collection
                 .insert_many(chunk.to_vec())
-                .await
-                .map_err(|e| e.to_string())?;
+                .await?;
         }
     }
 
@@ -112,8 +110,7 @@ pub async fn store_world(
         for chunk in routes.chunks(500) {
             routes_collection
                 .insert_many(chunk.to_vec())
-                .await
-                .map_err(|e| e.to_string())?;
+                .await?;
         }
     }
 
@@ -122,8 +119,7 @@ pub async fn store_world(
             doc! { "_id": world_id },
             doc! { "$set": { "entity_count": entity_count as u32, "route_count": world_seed.highways.len() as u32 } },
         )
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
 
     info!(
         world_id = %world_id,
@@ -237,26 +233,24 @@ fn build_route_docs(routes: &[Route], world_id: ObjectId) -> Vec<RouteDoc> {
         .collect()
 }
 
-async fn fetch_entities(db: &Database, world_id: ObjectId) -> Result<Vec<EntityDoc>, String> {
+async fn fetch_entities(db: &Database, world_id: ObjectId) -> Result<Vec<EntityDoc>, AppError> {
     let collection = db.collection::<EntityDoc>("entities");
     let cursor = collection
         .find(doc! { "world_id": world_id })
         .sort(doc! { "sort_order": 1 })
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
 
-    let entities: Vec<EntityDoc> = cursor.try_collect().await.map_err(|e| e.to_string())?;
+    let entities: Vec<EntityDoc> = cursor.try_collect().await?;
     Ok(entities)
 }
 
-async fn fetch_routes(db: &Database, world_id: ObjectId) -> Result<Vec<Route>, String> {
+async fn fetch_routes(db: &Database, world_id: ObjectId) -> Result<Vec<Route>, AppError> {
     let collection = db.collection::<RouteDoc>("routes");
     let cursor = collection
         .find(doc! { "world_id": world_id })
-        .await
-        .map_err(|e| e.to_string())?;
+        .await?;
 
-    let route_docs: Vec<RouteDoc> = cursor.try_collect().await.map_err(|e| e.to_string())?;
+    let route_docs: Vec<RouteDoc> = cursor.try_collect().await?;
     Ok(route_docs.into_iter().map(|rd| rd.route).collect())
 }
 

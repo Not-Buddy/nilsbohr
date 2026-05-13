@@ -1,10 +1,13 @@
 pub mod auth;
 pub mod db;
+pub mod error;
 pub mod git_layer;
 pub mod languages;
 pub mod models;
 pub mod parser;
 pub mod routes;
+pub mod services;
+pub mod state;
 pub mod symbol_table;
 
 use axum::{Router, response::IntoResponse, routing::get, routing::post};
@@ -18,7 +21,7 @@ async fn health_check() -> impl IntoResponse {
 
 /// Build the application router with the given shared state.
 /// Extracted so integration tests can create the same app without starting a server.
-pub fn build_app(state: Arc<auth::AppState>) -> Router {
+pub fn build_app(state: Arc<state::AppState>) -> Router {
     Router::new()
         // Protected route — AuthUser extractor enforces auth
         .route("/parse", post(routes::parse_repo_handler))

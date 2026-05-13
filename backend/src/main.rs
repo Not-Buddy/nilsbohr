@@ -6,6 +6,7 @@ use tracing_subscriber::EnvFilter;
 use backend::auth;
 use backend::build_app;
 use backend::db;
+use backend::state;
 
 #[tokio::main]
 async fn main() {
@@ -27,7 +28,7 @@ async fn main() {
 
     let mongodb = db::init_db(&auth_config.mongodb_uri).await;
 
-    let state = Arc::new(auth::AppState {
+    let state = Arc::new(state::AppState {
         config: auth_config,
         redis: redis_pool,
         http: http_client,

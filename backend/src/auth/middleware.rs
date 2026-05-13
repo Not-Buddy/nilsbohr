@@ -7,7 +7,7 @@ use std::future::Future;
 use std::pin::Pin;
 use tracing::warn;
 
-use super::AppState;
+use crate::state::AppState;
 use super::jwt;
 use super::models::AuthUser;
 

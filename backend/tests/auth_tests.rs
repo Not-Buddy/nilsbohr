@@ -1,5 +1,6 @@
 use axum::http::{Request, StatusCode};
 use backend::auth::{self, models::Claims};
+use backend::state;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tower::ServiceExt;
@@ -17,7 +18,7 @@ fn now_secs() -> usize {
 
 /// Build a test app backed by a real Redis instance.
 /// Requires REDIS_URL to be reachable (default: redis://127.0.0.1:6379).
-async fn test_app() -> (axum::Router, Arc<auth::AppState>) {
+async fn test_app() -> (axum::Router, Arc<state::AppState>) {
     dotenvy::dotenv().ok();
 
     let config = auth::AuthConfig {
@@ -26,13 +27,17 @@ async fn test_app() -> (axum::Router, Arc<auth::AppState>) {
         github_client_secret: "test_client_secret".into(),
         jwt_secret: "test-jwt-secret-key-for-integration-tests".into(),
         frontend_url: "http://localhost:3000".into(),
+        mongodb_uri: std::env::var("MONGODB_URI")
+            .unwrap_or_else(|_| "mongodb://localhost:27017".into()),
     };
 
     let pool = auth::redis::create_pool(&config.redis_url).await;
-    let state = Arc::new(auth::AppState {
+    let db = backend::db::init_db(&config.mongodb_uri).await;
+    let state = Arc::new(state::AppState {
         config,
         redis: pool,
         http: reqwest::Client::new(),
+        db,
     });
 
     let app = backend::build_app(state.clone());
@@ -40,7 +45,7 @@ async fn test_app() -> (axum::Router, Arc<auth::AppState>) {
 }
 
 /// Create a valid JWT + Redis session for testing authenticated routes.
-async fn create_test_session(state: &auth::AppState) -> (String, String) {
+async fn create_test_session(state: &state::AppState) -> (String, String) {
     let session_id = uuid::Uuid::new_v4().to_string();
     let github_id: i64 = 123456;
 
