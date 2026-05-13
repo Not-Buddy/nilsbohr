@@ -2,6 +2,7 @@ pub mod auth;
 pub mod db;
 pub mod error;
 pub mod git_layer;
+pub mod hierarchy;
 pub mod languages;
 pub mod models;
 pub mod parser;
@@ -9,6 +10,7 @@ pub mod routes;
 pub mod services;
 pub mod state;
 pub mod symbol_table;
+pub mod walker;
 
 use axum::{Router, response::IntoResponse, routing::get, routing::post};
 use std::sync::Arc;
