@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod db;
+pub mod domain;
 pub mod error;
 pub mod git_layer;
 pub mod hierarchy;
