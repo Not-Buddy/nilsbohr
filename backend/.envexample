@@ -10,3 +10,6 @@ JWT_SECRET=your_jwt_secret_here
 
 # Where to redirect after login
 FRONTEND_URL=http://localhost:3000
+
+# MongoDB connection
+MONGODB_URI=mongodb://localhost:27017

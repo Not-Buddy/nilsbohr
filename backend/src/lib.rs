@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod db;
 pub mod git_layer;
 pub mod languages;
 pub mod models;

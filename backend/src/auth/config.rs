@@ -7,6 +7,7 @@ pub struct AuthConfig {
     pub github_client_secret: String,
     pub jwt_secret: String,
     pub frontend_url: String,
+    pub mongodb_uri: String,
 }
 
 impl AuthConfig {
@@ -18,6 +19,7 @@ impl AuthConfig {
                 .expect("GITHUB_CLIENT_SECRET must be set"),
             jwt_secret: env::var("JWT_SECRET").expect("JWT_SECRET must be set"),
             frontend_url: env::var("FRONTEND_URL").expect("FRONTEND_URL must be set"),
+            mongodb_uri: env::var("MONGODB_URI").expect("MONGODB_URI must be set"),
         }
     }
 }

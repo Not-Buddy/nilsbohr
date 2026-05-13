@@ -17,7 +17,7 @@ pub struct WorldResponse {
 
 // --- World Metadata ---
 
-#[derive(Serialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct WorldMeta {
     pub total_cities: u32,
     pub total_buildings: u32,
@@ -27,7 +27,7 @@ pub struct WorldMeta {
     pub complexity_score: f32,
 }
 
-#[derive(Serialize, Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct CityStats {
     pub building_count: u32,
     pub room_count: u32,
@@ -37,7 +37,7 @@ pub struct CityStats {
 
 // --- World Seed ---
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct WorldSeed {
     pub world_meta: WorldMeta,
     pub cities: Vec<GameEntity>,
@@ -46,7 +46,7 @@ pub struct WorldSeed {
 
 // --- Routes (connections between entities) ---
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Route {
     pub id: String,
     pub from_id: String,
@@ -60,7 +60,7 @@ pub struct Route {
 // RouteType represents relationships between entities.
 // Some variants are reserved for future analysis and routing logic.
 #[allow(dead_code)]
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub enum RouteType {
     FunctionCall,
     Import,
@@ -71,7 +71,7 @@ pub enum RouteType {
 
 // --- Function Parameter ---
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Parameter {
     pub name: String,
     pub datatype: String,
@@ -79,7 +79,7 @@ pub struct Parameter {
 
 // --- The Game Entities ---
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "kind", content = "spec")]
 pub enum GameEntity {
     // 1. The Metropolis (Language Level)

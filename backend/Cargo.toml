@@ -45,5 +45,9 @@ uuid = { version = "1", features = ["v4"] }
 cookie = "0.18"
 dotenvy = "0.15"
 
+# Database
+mongodb = "3"
+futures = "0.3"
+
 [dev-dependencies]
 tower = { version = "0.5", features = ["util"] }

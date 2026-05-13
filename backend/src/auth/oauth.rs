@@ -7,7 +7,7 @@ use super::models::{GitHubTokenResponse, GitHubUser};
 /// Build the GitHub OAuth authorization URL that the user's browser is redirected to.
 pub fn build_authorize_url(config: &AuthConfig) -> String {
     format!(
-        "https://github.com/login/oauth/authorize?client_id={}&scope=read:user%20user:email%20repo",
+        "https://github.com/login/oauth/authorize?client_id={}&scope=read:user%20user:email",
         config.github_client_id
     )
 }
