@@ -14,11 +14,16 @@ type AuthContextType = {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: () => void;
+  login: (provider?: 'github' | 'google') => void;
   logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+const PROVIDER_PATHS: Record<string, string> = {
+  github: '/auth/login',
+  google: '/auth/google/login',
+};
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -27,7 +32,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
   const [isLoading, setIsLoading] = useState(true);
 
-  // On mount (or when token changes), validate it via /auth/me
   useEffect(() => {
     if (!token) {
       setIsLoading(false);
@@ -44,7 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })
       .catch(() => {
         if (!cancelled) {
-          // Token is invalid — clean up
           localStorage.removeItem('token');
           setToken(null);
           setUser(null);
@@ -59,9 +62,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [token]);
 
-  const login = () => {
-    // Redirect to backend, which redirects to GitHub OAuth
-    window.location.href = `${import.meta.env.VITE_BACKEND_URL}/auth/login`;
+  const login = (provider: 'github' | 'google' = 'github') => {
+    const path = PROVIDER_PATHS[provider];
+    window.location.href = `${import.meta.env.VITE_BACKEND_URL}${path}`;
   };
 
   const logout = async () => {
@@ -73,7 +76,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
-    // Force redirect to landing page
     window.location.href = '/';
   };
 

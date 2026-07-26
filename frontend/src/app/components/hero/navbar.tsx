@@ -26,7 +26,7 @@ export default function Navbar() {
             </button>
           </div>
         ) : (
-          <button className="nav-login-btn" onClick={login}>
+          <button className="nav-login-btn" onClick={() => login()}>
             <svg
               className="github-icon"
               viewBox="0 0 24 24"

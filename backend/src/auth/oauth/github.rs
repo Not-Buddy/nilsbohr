@@ -1,8 +1,8 @@
 use reqwest::Client;
 use tracing::info;
 
-use super::config::AuthConfig;
-use super::models::{GitHubTokenResponse, GitHubUser};
+use crate::auth::config::AuthConfig;
+use crate::auth::models::{GitHubTokenResponse, GitHubUser};
 
 /// Build the GitHub OAuth authorization URL that the user's browser is redirected to.
 pub fn build_authorize_url(config: &AuthConfig) -> String {

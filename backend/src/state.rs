@@ -8,6 +8,7 @@ pub struct AppState {
     pub redis: crate::auth::redis::RedisPool,
     pub http: reqwest::Client,
     pub db: mongodb::Database,
+    pub mysql: sqlx::MySqlPool,
 }
 
 impl axum::extract::FromRef<Arc<AppState>> for AppState {

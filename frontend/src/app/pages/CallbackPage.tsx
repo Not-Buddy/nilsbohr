@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import api from '../auth/api';
 
 export default function CallbackPage() {
   const [searchParams] = useSearchParams();
@@ -9,11 +10,16 @@ export default function CallbackPage() {
     const token = searchParams.get('token');
 
     if (token) {
-      // Save token and force full-page reload so AuthProvider picks it up
       localStorage.setItem('token', token);
-      window.location.href = '/home';
+
+      api.get('/auth/me').then((res) => {
+        localStorage.setItem('github_id', String(res.data.github_id));
+        localStorage.setItem('username', res.data.username);
+        window.location.href = '/home';
+      }).catch(() => {
+        window.location.href = '/home';
+      });
     } else {
-      // Failed — show error briefly, then go back to landing
       setError(true);
       setTimeout(() => (window.location.href = '/'), 2000);
     }

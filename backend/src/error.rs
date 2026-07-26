@@ -7,8 +7,10 @@ pub enum AppError {
     NotFound(String),
     #[error("{0}")]
     Unauthorized(String),
-    #[error("Database error: {0}")]
+    #[error("MongoDB error: {0}")]
     Database(#[from] mongodb::error::Error),
+    #[error("MySQL error: {0}")]
+    Sqlx(#[from] sqlx::Error),
     #[error("Git error: {0}")]
     Git(String),
     #[error("Parse error: {0}")]
@@ -25,6 +27,7 @@ impl IntoResponse for AppError {
             AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
             AppError::Unauthorized(msg) => (StatusCode::UNAUTHORIZED, msg.clone()),
             AppError::Database(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+            AppError::Sqlx(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
             AppError::Git(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             AppError::Parse(msg) => (StatusCode::INTERNAL_SERVER_ERROR, msg.clone()),
             AppError::ExternalApi(msg) => (StatusCode::BAD_GATEWAY, msg.clone()),

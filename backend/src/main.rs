@@ -16,10 +16,8 @@ async fn main() {
 
     info!("Logger initialized");
 
-    // Load .env file (silently ignore if missing — e.g. in production)
     dotenvy::dotenv().ok();
 
-    // Initialize auth subsystem
     let auth_config = auth::AuthConfig::from_env();
     let redis_pool = auth::redis::create_pool(&auth_config.redis_url).await;
     let http_client = reqwest::Client::new();
@@ -27,12 +25,14 @@ async fn main() {
     info!("Redis pool and auth config initialized");
 
     let mongodb = db::init_db(&auth_config.mongodb_uri).await;
+    let mysql_pool = db::mysql::init_pool(&auth_config.database_url).await;
 
     let state = Arc::new(state::AppState {
         config: auth_config,
         redis: redis_pool,
         http: http_client,
         db: mongodb,
+        mysql: mysql_pool,
     });
 
     let app = build_app(state);

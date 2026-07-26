@@ -5,13 +5,13 @@ use uuid::Uuid;
 
 use crate::auth::AuthConfig;
 use crate::auth::models::{AuthUser, Claims, User};
-use crate::auth::{jwt, oauth, redis as auth_redis};
+use crate::auth::{jwt, redis as auth_redis};
 use crate::error::AppError;
 use crate::services::github_service;
 use crate::state::AppState;
 
 pub fn build_login_url(config: &AuthConfig) -> String {
-    oauth::build_authorize_url(config)
+    crate::auth::oauth::github::build_authorize_url(config)
 }
 
 pub struct LoginResult {
@@ -26,19 +26,30 @@ pub async fn handle_callback(
     state: &AppState,
     code: &str,
 ) -> Result<LoginResult, AppError> {
-    let access_token = oauth::exchange_code(&state.http, &state.config, code)
+    let access_token = crate::auth::oauth::github::exchange_code(&state.http, &state.config, code)
         .await
         .map_err(|e| {
-            error!("OAuth code exchange failed: {}", e);
+            error!("GitHub OAuth code exchange failed: {}", e);
             AppError::Unauthorized(e)
         })?;
 
-    let gh_user = oauth::fetch_github_user(&state.http, &access_token)
+    let gh_user = crate::auth::oauth::github::fetch_github_user(&state.http, &access_token)
         .await
         .map_err(|e| {
             error!("GitHub user fetch failed: {}", e);
             AppError::ExternalApi(e)
         })?;
+
+    // Upsert user in MySQL
+    let _db_user = crate::db::mysql::users::find_or_create_oauth_user(
+        &state.mysql,
+        "github",
+        &gh_user.id.to_string(),
+        gh_user.email.as_deref(),
+        &gh_user.login,
+        gh_user.avatar_url.as_deref(),
+    )
+    .await?;
 
     let now = Utc::now().to_rfc3339();
     let existing = auth_redis::get_user(&state.redis, gh_user.id)
@@ -78,6 +89,66 @@ pub async fn handle_callback(
             AppError::Internal(e)
         })?;
 
+    issue_session(state, user).await
+}
+
+pub async fn handle_google_callback(
+    state: &AppState,
+    code: &str,
+) -> Result<LoginResult, AppError> {
+    let access_token =
+        crate::auth::oauth::google::exchange_google_code(&state.http, &state.config, code)
+            .await
+            .map_err(|e| {
+                error!("Google OAuth code exchange failed: {}", e);
+                AppError::Unauthorized(e)
+            })?;
+
+    let google_user =
+        crate::auth::oauth::google::fetch_google_user(&state.http, &access_token)
+            .await
+            .map_err(|e| {
+                error!("Google user fetch failed: {}", e);
+                AppError::ExternalApi(e)
+            })?;
+
+    // Upsert user in MySQL
+    let _db_user = crate::db::mysql::users::find_or_create_oauth_user(
+        &state.mysql,
+        "google",
+        &google_user.sub,
+        google_user.email.as_deref(),
+        &google_user.name,
+        google_user.picture.as_deref(),
+    )
+    .await?;
+
+    // Use a synthetic github_id derived from the MySQL user id for Redis compatibility.
+    // The Google user's MySQL row id is used as a stable identifier.
+    let synthetic_github_id: i64 = _db_user.id as i64;
+
+    let now = Utc::now().to_rfc3339();
+    let user = User {
+        github_id: synthetic_github_id,
+        username: google_user.name.clone(),
+        display_name: Some(google_user.name),
+        email: google_user.email,
+        avatar_url: google_user.picture,
+        created_at: now.clone(),
+        last_login: now.clone(),
+    };
+
+    auth_redis::store_user(&state.redis, &user)
+        .await
+        .map_err(|e| {
+            error!("Failed to store user: {}", e);
+            AppError::Internal(e)
+        })?;
+
+    issue_session(state, user).await
+}
+
+async fn issue_session(state: &AppState, user: User) -> Result<LoginResult, AppError> {
     let session_id = Uuid::new_v4().to_string();
     auth_redis::store_session(&state.redis, &session_id, user.github_id)
         .await

@@ -5,6 +5,10 @@ REDIS_URL=redis://127.0.0.1:6379
 GITHUB_CLIENT_ID=your_client_id_here
 GITHUB_CLIENT_SECRET=your_client_secret_here
 
+# Google OAuth App (https://console.cloud.google.com/apis/credentials)
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+
 # JWT signing key (generate with: openssl rand -hex 32)
 JWT_SECRET=your_jwt_secret_here
 
@@ -13,3 +17,6 @@ FRONTEND_URL=http://localhost:3000
 
 # MongoDB connection
 MONGODB_URI=mongodb://localhost:27017
+
+# MySQL connection
+DATABASE_URL=mysql://nilsbohr:password@localhost:3306/nilsbohr

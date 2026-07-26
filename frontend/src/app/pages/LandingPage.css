@@ -136,3 +136,12 @@
   font-size: 11px;
   color: #333;
 }
+
+/* Google button variant */
+.google-btn {
+  margin-top: 12px;
+}
+
+.landing-content > .landing-login-btn + .landing-login-btn {
+  margin-top: 12px;
+}

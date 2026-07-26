@@ -6,6 +6,7 @@ pub mod git_layer;
 pub mod hierarchy;
 pub mod languages;
 pub mod models;
+pub mod multiplayer;
 pub mod parser;
 pub mod routes;
 pub mod services;
@@ -22,20 +23,20 @@ async fn health_check() -> impl IntoResponse {
     axum::Json(serde_json::json!({"status": "healthy"}))
 }
 
-/// Build the application router with the given shared state.
-/// Extracted so integration tests can create the same app without starting a server.
 pub fn build_app(state: Arc<state::AppState>) -> Router {
     Router::new()
-        // Protected route — AuthUser extractor enforces auth
         .route("/parse", post(routes::parse_repo_handler))
-        // Auth routes
         .route("/auth/login", get(auth::routes::login))
         .route("/auth/callback", get(auth::routes::callback))
+        .route("/auth/google/login", get(auth::routes::google_login))
+        .route("/auth/google/callback", get(auth::routes::google_callback))
         .route("/auth/me", get(auth::routes::me))
         .route("/auth/repos", get(auth::routes::repos))
         .route("/auth/logout", post(auth::routes::logout))
+        .route("/parties", post(multiplayer::create_party))
+        .route("/parties/:id", get(multiplayer::get_party))
+        .route("/ws/parties/:id", get(multiplayer::ws_handler))
         .with_state(state)
-        // Public routes (no state needed)
         .route("/", get(health_check))
         .route("/health", get(health_check))
         .layer(
@@ -49,11 +50,11 @@ pub fn build_app(state: Arc<state::AppState>) -> Router {
                     },
                 ))
                 .allow_methods([
-                    Method::GET, 
-                    Method::POST, 
-                    Method::OPTIONS, 
-                    Method::PUT, 
-                    Method::DELETE
+                    Method::GET,
+                    Method::POST,
+                    Method::OPTIONS,
+                    Method::PUT,
+                    Method::DELETE,
                 ])
                 .allow_headers([
                     header::CONTENT_TYPE,

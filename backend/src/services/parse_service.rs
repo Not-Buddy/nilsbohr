@@ -1,5 +1,4 @@
 use chrono::Utc;
-use git2::Repository;
 use std::path::Path;
 use tokio::task;
 use tracing::{error, info, instrument, warn};
@@ -120,7 +119,7 @@ pub async fn parse_repository(
     let clone_url = repo_url.to_string();
 
     info!("Cloning {owner}/{repo_name} to temp directory");
-    let clone_result = task::spawn_blocking(move || Repository::clone(&clone_url, &clone_path)).await;
+    let clone_result = task::spawn_blocking(move || crate::git_layer::GitLayer::shallow_clone(&clone_url, &clone_path)).await;
 
     let repo_path = match clone_result {
         Ok(Ok(repo)) => {

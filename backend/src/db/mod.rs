@@ -1,4 +1,5 @@
 pub mod models;
+pub mod mysql;
 pub mod repository;
 pub mod world;
 
