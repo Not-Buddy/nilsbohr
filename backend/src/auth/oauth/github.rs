@@ -5,11 +5,16 @@ use crate::auth::config::AuthConfig;
 use crate::auth::models::{GitHubTokenResponse, GitHubUser};
 
 /// Build the GitHub OAuth authorization URL that the user's browser is redirected to.
-pub fn build_authorize_url(config: &AuthConfig) -> String {
+pub fn build_authorize_url(config: &AuthConfig, frontend_url: &str) -> String {
+    let redirect_uri = format!("{}/auth/callback", frontend_url);
     format!(
-        "https://github.com/login/oauth/authorize?client_id={}&scope=read:user%20user:email",
-        config.github_client_id
+        "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&scope=read:user%20user:email",
+        config.github_client_id, urlencoding(&redirect_uri)
     )
+}
+
+fn urlencoding(s: &str) -> String {
+    s.replace(':', "%3A").replace('/', "%2F")
 }
 
 /// Exchange an authorization code for a GitHub access token.

@@ -11,7 +11,7 @@ use crate::services::github_service;
 use crate::state::AppState;
 
 pub fn build_login_url(config: &AuthConfig) -> String {
-    crate::auth::oauth::github::build_authorize_url(config)
+    crate::auth::oauth::github::build_authorize_url(config, &config.frontend_url)
 }
 
 pub struct LoginResult {
@@ -189,7 +189,7 @@ async fn issue_session(state: &AppState, user: User) -> Result<LoginResult, AppE
     );
 
     let redirect_url = format!(
-        "{}/auth/callback?token={}",
+        "{}/login/callback?token={}",
         state.config.frontend_url, token
     );
 

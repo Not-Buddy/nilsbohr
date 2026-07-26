@@ -16,5 +16,6 @@ pub use repos::repos;
 
 #[derive(serde::Deserialize)]
 pub struct CallbackParams {
-    pub code: String,
+    pub code: Option<String>,
+    pub error: Option<String>,
 }

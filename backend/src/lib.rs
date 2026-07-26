@@ -24,6 +24,8 @@ async fn health_check() -> impl IntoResponse {
 }
 
 pub fn build_app(state: Arc<state::AppState>) -> Router {
+    let frontend_url = state.config.frontend_url.clone();
+
     Router::new()
         .route("/parse", post(routes::parse_repo_handler))
         .route("/auth/login", get(auth::routes::login))
@@ -42,11 +44,12 @@ pub fn build_app(state: Arc<state::AppState>) -> Router {
         .layer(
             CorsLayer::new()
                 .allow_origin(AllowOrigin::predicate(
-                    |origin: &http::HeaderValue, _request_parts: &http::request::Parts| {
+                    move |origin: &http::HeaderValue, _: &http::request::Parts| {
                         let origin_bytes = origin.as_bytes();
                         origin_bytes.starts_with(b"http://localhost:")
                             || origin_bytes.starts_with(b"https://nilsbohr")
                             || origin_bytes == b"http://localhost"
+                            || origin_bytes == frontend_url.as_bytes()
                     },
                 ))
                 .allow_methods([

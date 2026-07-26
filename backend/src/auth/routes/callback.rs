@@ -15,7 +15,16 @@ pub async fn callback(
     State(state): State<Arc<AppState>>,
     Query(params): Query<CallbackParams>,
 ) -> Response {
-    match auth_service::handle_callback(&state, &params.code).await {
+    let code = match params.code {
+        Some(code) => code,
+        None => {
+            let err = params.error.unwrap_or_else(|| "unknown".into());
+            let redirect = format!("{}/login/callback?error={}", state.config.frontend_url, err);
+            return (StatusCode::FOUND, [("Location", redirect.as_str())]).into_response();
+        }
+    };
+
+    match auth_service::handle_callback(&state, &code).await {
         Ok(result) => {
             let mut headers = HeaderMap::new();
             headers.insert("Set-Cookie", result.cookie_value.parse().unwrap());

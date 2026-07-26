@@ -363,12 +363,10 @@ export class CityScene implements Scene {
       this.container.addChild(this.enterPrompt)
     }
 
-    const isMobile = window.innerWidth < 600
-    this.enterPrompt.scale.set(isMobile ? 0.6 : 1)
-    
+    this.enterPrompt.scale.set(1)
     this.enterPrompt.position.set(
       window.innerWidth / 2,
-      isMobile ? window.innerHeight - 200 : window.innerHeight - 80
+      window.innerHeight - 80
     )
     this.enterPrompt.visible = true
   }
@@ -403,12 +401,10 @@ export class CityScene implements Scene {
       this.container.addChild(this.emptyPrompt)
     }
 
-    const isMobile = window.innerWidth < 600
-    this.emptyPrompt.scale.set(isMobile ? 0.6 : 1)
-    
+    this.emptyPrompt.scale.set(1)
     this.emptyPrompt.position.set(
       window.innerWidth / 2,
-      isMobile ? window.innerHeight - 200 : window.innerHeight - 80
+      window.innerHeight - 80
     )
     this.emptyPrompt.visible = true
   }

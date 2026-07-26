@@ -60,11 +60,11 @@ services:
     networks: [data]
 
   mongo:
-    image: mongodb/mongodb-community-server:8.0-ubuntu2204-slim
+    image: mongo:4.4
     volumes:
       - mongo-data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
