@@ -57,15 +57,6 @@ graph TB
 
     Frontend -.->|"Served build-time<br/>VITE_BACKEND_URL"| User
 
-    style User fill:#f9f,stroke:#333,stroke-width:2px
-    style Nginx fill:#fbb,stroke:#333,stroke-width:2px
-    style Frontend fill:#bfb,stroke:#333,stroke-width:2px
-    style Backend fill:#bbf,stroke:#333,stroke-width:2px
-    style MySQL fill:#fb6,stroke:#333,stroke-width:2px
-    style MongoDB fill:#6f6,stroke:#333,stroke-width:2px
-    style Redis fill:#f66,stroke:#333,stroke-width:2px
-    style GitHub fill:#fff,stroke:#333,stroke-dasharray: 5 5
-    style Google fill:#fff,stroke:#333,stroke-dasharray: 5 5
 ```
 
 ### Key points
@@ -117,12 +108,6 @@ graph LR
     MongoDB --> V2
     Redis --> V3
 
-    style Nginx fill:#fbb,stroke:#333,stroke-width:2px
-    style Frontend fill:#bfb,stroke:#333,stroke-width:2px
-    style Backend fill:#bbf,stroke:#333,stroke-width:2px
-    style MySQL fill:#fb6,stroke:#333,stroke-width:2px
-    style MongoDB fill:#6f6,stroke:#333,stroke-width:2px
-    style Redis fill:#f66,stroke:#333,stroke-width:2px
 ```
 
 ### Service details
@@ -283,14 +268,6 @@ graph TB
     GithubSvc -->|"HTTPS"| ExtGH
     Google -->|"HTTPS"| ExtGG["Google API"]
 
-    style Main fill:#bbf,stroke:#333,stroke-width:2px
-    style Lib fill:#bbf,stroke:#333,stroke-width:2px
-    style AppState fill:#fdd,stroke:#333,stroke-width:2px
-    style ParseSvc fill:#dfd,stroke:#333,stroke-width:2px
-    style AuthSvc fill:#dfd,stroke:#333,stroke-width:2px
-    style AppError fill:#fbb,stroke:#333,stroke-width:2px
-    style ExtGH fill:#fff,stroke:#333,stroke-dasharray: 5 5
-    style ExtGG fill:#fff,stroke:#333,stroke-dasharray: 5 5
 ```
 
 ### Module responsibilities at a glance
@@ -376,10 +353,6 @@ graph TB
     Axios -.->|"GET /auth/me"| AuthCtx
     Axios -.->|"POST /logout"| AuthCtx
 
-    style DeviceGuard fill:#fcf,stroke:#333,stroke-width:2px
-    style BackendGuard fill:#fcf,stroke:#333,stroke-width:2px
-    style ProtectedRoute fill:#fdd,stroke:#333,stroke-width:2px
-    style PixiApp fill:#bbf,stroke:#333,stroke-width:2px
 ```
 
 ### Guard chain (innermost → outermost)
@@ -479,10 +452,6 @@ graph TB
     BuildingScene --> RoomSprite
     RoomScene --> ArtifactSprite
 
-    style PixiApp fill:#bbf,stroke:#333,stroke-width:2px
-    style SceneManager fill:#fdd,stroke:#333,stroke-width:2px
-    style WorldGen fill:#dfd,stroke:#333,stroke-width:2px
-    style Player fill:#fbb,stroke:#333,stroke-width:2px
 ```
 
 ---
@@ -546,9 +515,6 @@ graph TB
     BuildingLayouter --> Scattered
     BuildingLayouter --> Street
 
-    style CityGenMain fill:#bbf,stroke:#333,stroke-width:2px
-    style Organic fill:#bfb,stroke:#333,stroke-width:2px
-    style BiomeConfig fill:#fcf,stroke:#333,stroke-width:2px
 ```
 
 ### Biome palettes
@@ -624,9 +590,6 @@ graph LR
     MultiStore --> PartyKeys
     MultiStore --> BroadcastMap
 
-    style MySQLDB fill:#fb6,stroke:#333,stroke-width:2px
-    style Mongo fill:#6f6,stroke:#333,stroke-width:2px
-    style RedisDB fill:#f66,stroke:#333,stroke-width:2px
 ```
 
 ### Three-database philosophy
@@ -680,7 +643,6 @@ graph TB
     EntityDoc -->|"get_cached_world"| Reconstruct
     Reconstruct --> EntityDoc
 
-    style Mongo fill:#6f6,stroke:#333,stroke-width:2px
 ```
 
 ### Indexes (defined in `db/mod.rs:22-76`)
@@ -736,9 +698,6 @@ graph TB
     MultiService["multiplayer/store.rs"] --> PartyKey
     MultiService --> Broadcasts
 
-    style Redis fill:#f66,stroke:#333,stroke-width:2px
-    style InMemory fill:#faa,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
-    style Broadcasts fill:#faa,stroke:#333,stroke-dasharray: 5 5
 ```
 
 ### Key TTL summary

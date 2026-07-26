@@ -68,8 +68,7 @@ sequenceDiagram
     BE->>RD: SETEX session:{uuid} 604800 = github_id
     BE->>BE: jwt::create_token({sub=github_id, username, session_id, exp})
 
-    BE-->>NG: 302 + Set-Cookie: token=...; HttpOnly; SameSite=Lax Path=/
-            + Location: {frontend_url}/login/callback?token={jwt}
+    BE-->>NG: 302 with Set-Cookie token and Location → /login/callback?token=jwt
     NG-->>U: 302 → /login/callback?token=eyJ...
     U->>NG: GET /login/callback?token=...
     NG->>FE: Try files $uri /index.html → CallbackPage (React SPA)
@@ -288,10 +287,6 @@ flowchart TD
     Mount --> Playable["Game running<br/>Ticker.shared drives<br/>scene.update(dt) every frame"]
     Playable --> HomeBtn["🏠 Home button overlay visible"]
 
-    style DG fill:#fcf,stroke:#333,stroke-width:2px
-    style BG fill:#fcf,stroke:#333,stroke-width:2px
-    style ErrScreen fill:#fbb,stroke:#333,stroke-width:2px
-    style Playable fill:#bfb,stroke:#333,stroke-width:2px
 ```
 
 ### Phase UI components (PixiApp.tsx)
@@ -434,13 +429,13 @@ stateDiagram-v2
     CityScene --> WorldScene : Press Escape<br/>(lazy dynamic import to avoid circular dep)
     WorldScene --> [*] : scene.unmount()<br/>(navigate / or component unmount)
 
-    note right of WorldScene : Layers:<br/>groundLayer, cityLayer, entityLayer<br/>ChunkManager (loadRadius 5)<br/>GroundChunkManager (loadRadius 2)<br/>WorldMiniMap (top-right)
+    note right of WorldScene : groundLayer, cityLayer, entityLayer — ChunkManager loadRadius 5, GroundChunkManager loadRadius 2, WorldMiniMap top-right
 
-    note right of CityScene : Uses:<br/>CityGenerator (organic strategy)<br/>BiomeConfig (6 biomes)<br/>RoadNetwork (Kruskal MST + nearest-neighbor streets)<br/>CityGroundRenderer<br/>Minimap (top-right, districts)
+    note right of CityScene : CityGenerator organic strategy, BiomeConfig 6 biomes, RoadNetwork Kruskal MST, CityGroundRenderer, Minimap top-right
 
-    note right of BuildingScene : Renders:<br/>Header "📁 {building.name}"<br/>Info line: type | LOC | rooms<br/>Rooms (grid layout) OR direct artifacts<br/>Floor 0x1a1a2e with 50px grid
+    note right of BuildingScene : Header building name, Info line type LOC rooms, Rooms grid layout OR direct artifacts, Floor with 50px grid
 
-    note right of RoomScene : Renders:<br/>Room icon (getRoomIcon)<br/>Badges: is_async, is_main, visibility<br/>Two-line metadata + params → return type<br/>Artifacts (force-directed layout)
+    note right of RoomScene : Room icon, Badges is_async is_main visibility, Two-line metadata params return type, Artifacts force-directed layout
 ```
 
 ### Scene implementation pattern
@@ -506,7 +501,7 @@ flowchart LR
     subgraph Collision["Collision setup (every frame)"]
         Bounds["Build collision bounds from<br/>ChunkManager.getLoadedCitySprites()<br/>(filter enterable=true)"]
         Water["Add water rects from<br/>GroundChunkManager.getWaterCollisionRects()"]
-        Player["Player.checkCollision(playerX/y, bounds)<br/>AABB with playerRadius=20<br/>enterable rects allow entry from below"]
+        PlayerCol["Player.checkCollision(playerX/y, bounds)<br/>AABB with playerRadius=20<br/>enterable rects allow entry from below"]
     end
 
     Tick --> Player
@@ -523,13 +518,9 @@ flowchart LR
 
     CLoadFn --> Bounds
     GGen --> Water
-    Bounds --> Collision
-    Water --> Collision
-    Collision --> Player
+    Bounds --> PlayerCol
+    Water --> PlayerCol
 
-    style Tick fill:#bbf,stroke:#333,stroke-width:2px
-    style SmallWorld fill:#bfb,stroke:#333,stroke-width:2px
-    style Collision fill:#fdd,stroke:#333,stroke-width:2px
 ```
 
 ### Auto-tile water detection
@@ -601,7 +592,7 @@ flowchart TD
     Update --> Load
     Load --> ChunkGen
     ChunkGen --> Tilemap
-    ChunkGen --> "place props" --> ZIndex
+    ChunkGen -->|"place props"| ZIndex
     Update --> Unload
 
     subgraph Output["Final output"]
@@ -613,10 +604,6 @@ flowchart TD
     ZIndex --> Visual
     ChunkGen -->|"water tiles tracked"| Collision
 
-    style Seed fill:#fcf,stroke:#333,stroke-width:2px
-    style FBm fill:#bbf,stroke:#333,stroke-width:2px
-    style ChunkGen fill:#bfb,stroke:#333,stroke-width:2px
-    style Collision fill:#fdd,stroke:#333,stroke-width:2px
 ```
 
 ### Two RNG systems
@@ -733,9 +720,6 @@ flowchart TD
     EnterBuilding --> PerRoom
     PerRoom --> ReadMetadata
 
-    style Shallow fill:#fbb,stroke:#333,stroke-width:2px
-    style WorldGen fill:#bbf,stroke:#333,stroke-width:2px
-    style ReadMetadata fill:#bfb,stroke:#333,stroke-width:2px
 ```
 
 ### Code metaphor mapping
