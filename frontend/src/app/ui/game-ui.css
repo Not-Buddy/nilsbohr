@@ -1,0 +1,350 @@
+/* ===== GAME UI — Medieval Fantasy 2D Design System ===== */
+/* Shared across all web-based UI: buttons, panels, hud      */
+
+/* ── PARTY MEMBER OVERLAY ── */
+
+.party-overlay {
+  position: fixed;
+  top: 60px;
+  right: 16px;
+  z-index: 100;
+  min-width: 200px;
+  background: linear-gradient(180deg, var(--wood) 0%, var(--wood-dark) 100%);
+  border: 4px solid var(--ink);
+  border-radius: 0;
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.6),
+    inset 0 2px 0 rgba(244, 232, 208, 0.25),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.4);
+  font-family: 'Press Start 2P', monospace;
+  padding: 10px 12px;
+}
+
+.party-overlay-header {
+  font-size: 10px;
+  color: var(--gold-light);
+  text-shadow: 1px 1px 0 var(--ink);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--ink);
+}
+
+.party-member-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+}
+
+.party-member-dot {
+  width: 8px;
+  height: 8px;
+  background: var(--gold);
+  border: 1px solid var(--ink);
+  flex-shrink: 0;
+}
+
+.party-member-name {
+  font-size: 8px;
+  color: var(--parchment-light);
+  text-shadow: 1px 1px 0 var(--ink);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.party-member-scene {
+  font-size: 7px;
+  color: var(--wood-light);
+  opacity: 0.8;
+  flex-shrink: 0;
+}
+
+.party-member-empty {
+  font-size: 7px;
+  color: var(--wood-light);
+  opacity: 0.6;
+  padding: 4px 0;
+}
+
+/* ── BUTTONS ── */
+
+.game-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: var(--parchment-light);
+  background: linear-gradient(180deg, var(--wood-light) 0%, var(--wood) 50%, var(--wood-dark) 100%);
+  border: 4px solid var(--ink);
+  border-radius: 0;
+  padding: 14px 24px;
+  cursor: pointer;
+  position: relative;
+  box-shadow:
+    0 6px 0 var(--ink),
+    inset 0 3px 0 rgba(244, 232, 208, 0.35),
+    inset 0 -4px 0 rgba(26, 18, 11, 0.5),
+    inset 3px 0 0 rgba(244, 232, 208, 0.15),
+    inset -3px 0 0 rgba(26, 18, 11, 0.3);
+  text-shadow: 2px 2px 0 var(--ink);
+  transition: transform 0.06s steps(2), box-shadow 0.06s steps(2);
+  image-rendering: pixelated;
+  user-select: none;
+}
+
+.game-btn:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 9px 0 var(--ink),
+    inset 0 3px 0 rgba(244, 232, 208, 0.45),
+    inset 0 -4px 0 rgba(26, 18, 11, 0.5),
+    inset 3px 0 0 rgba(244, 232, 208, 0.2),
+    inset -3px 0 0 rgba(26, 18, 11, 0.3);
+  background: linear-gradient(180deg, #a06a35 0%, var(--wood-light) 50%, var(--wood) 100%);
+}
+
+.game-btn:active {
+  transform: translateY(4px);
+  box-shadow:
+    0 2px 0 var(--ink),
+    inset 0 2px 0 rgba(26, 18, 11, 0.4),
+    inset 0 -2px 0 rgba(244, 232, 208, 0.15);
+  background: linear-gradient(180deg, var(--wood-dark) 0%, var(--wood) 100%);
+}
+
+.game-btn--gold {
+  color: var(--ink);
+  text-shadow: 1px 1px 0 rgba(244, 232, 208, 0.5);
+  background: linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 50%, #8a6d1a 100%);
+}
+
+.game-btn--gold:hover {
+  background: linear-gradient(180deg, #ffe08a 0%, var(--gold-light) 50%, var(--gold) 100%);
+}
+
+.game-btn--danger {
+  background: linear-gradient(180deg, var(--blood-light) 0%, var(--blood) 50%, #5c1010 100%);
+}
+
+.game-btn--small {
+  font-size: 9px;
+  padding: 8px 14px;
+  box-shadow:
+    0 4px 0 var(--ink),
+    inset 0 2px 0 rgba(244, 232, 208, 0.35),
+    inset 0 -3px 0 rgba(26, 18, 11, 0.5);
+}
+
+.game-btn--small:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 0 var(--ink), inset 0 2px 0 rgba(244, 232, 208, 0.45), inset 0 -3px 0 rgba(26, 18, 11, 0.5);
+}
+
+/* ── PANELS ── */
+
+.game-panel {
+  background: var(--parchment);
+  border: 4px solid var(--ink);
+  border-radius: 0;
+  box-shadow:
+    0 6px 0 rgba(0, 0, 0, 0.5),
+    inset 0 3px 0 rgba(244, 232, 208, 0.5),
+    inset 0 -4px 0 rgba(26, 18, 11, 0.3);
+  color: var(--ink);
+}
+
+.game-panel--inset {
+  box-shadow:
+    inset 0 3px 0 rgba(26, 18, 11, 0.25),
+    inset 0 -2px 0 rgba(244, 232, 208, 0.3);
+  background: var(--parchment-dark);
+}
+
+.game-panel--wood {
+  background: linear-gradient(180deg, var(--wood-light) 0%, var(--wood) 50%, var(--wood-dark) 100%);
+  color: var(--parchment-light);
+  border-color: var(--ink);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+.game-panel--dark {
+  background: var(--ink);
+  border-color: var(--iron);
+  color: var(--parchment-light);
+  text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.8);
+}
+
+/* ── OVERLAY (shared by guards, loading, error) ── */
+
+.game-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--overlay-bg);
+  z-index: 9999;
+}
+
+/* ── GAME-FORM ELEMENTS ── */
+
+.game-input {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--parchment-light);
+  border: 4px solid var(--ink);
+  border-radius: 0;
+  padding: 12px 16px;
+  outline: none;
+  width: 100%;
+  box-shadow:
+    inset 0 2px 0 rgba(26, 18, 11, 0.3),
+    inset 0 -1px 0 rgba(244, 232, 208, 0.5);
+}
+
+.game-input::placeholder {
+  color: var(--wood-light);
+  font-family: 'Courier New', monospace;
+  opacity: 0.6;
+}
+
+.game-input:focus {
+  box-shadow:
+    0 0 0 2px var(--gold),
+    inset 0 2px 0 rgba(26, 18, 11, 0.3),
+    inset 0 -1px 0 rgba(244, 232, 208, 0.5);
+}
+
+/* ── HUD ── */
+
+.hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 100;
+  font-family: 'Press Start 2P', monospace;
+}
+
+.hud > * {
+  pointer-events: auto;
+}
+
+/* Top-Left: Health bar */
+.hud-health {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hud-health-frame {
+  width: 220px;
+  height: 28px;
+  background: var(--ink);
+  border: 4px solid var(--iron);
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.6),
+    inset 0 2px 0 rgba(255, 255, 255, 0.15),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.5);
+}
+
+.hud-health-fill {
+  height: 100%;
+  background: linear-gradient(180deg,
+    #ff8a8a 0%, var(--blood-light) 30%, var(--blood) 70%, #4a0d0d 100%);
+  box-shadow:
+    inset 0 -6px 0 rgba(0, 0, 0, 0.35),
+    inset 0 4px 0 rgba(255, 255, 255, 0.25);
+  transition: width 0.2s steps(8);
+}
+
+.hud-health-text {
+  font-size: 10px;
+  color: var(--parchment-light);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+/* Top-Right: Coin counter */
+.hud-coins {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(180deg, var(--wood) 0%, var(--wood-dark) 100%);
+  border: 4px solid var(--ink);
+  padding: 8px 14px;
+  box-shadow:
+    0 4px 0 rgba(0, 0, 0, 0.6),
+    inset 0 2px 0 rgba(244, 232, 208, 0.25),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.4);
+}
+
+.hud-coin-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  font-size: 20px;
+  background: radial-gradient(circle at 35% 30%, var(--gold-light), var(--gold) 60%, #8a6d1a);
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  box-shadow:
+    inset -2px -2px 0 rgba(0, 0, 0, 0.3),
+    inset 2px 2px 0 rgba(255, 255, 255, 0.4);
+}
+
+.hud-coin-count {
+  font-size: 14px;
+  color: var(--gold-light);
+  text-shadow: 2px 2px 0 var(--ink);
+}
+
+/* Bottom-Center: Hotbar */
+.hud-hotbar {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+}
+
+.hotbar-slot {
+  width: 64px;
+  height: 64px;
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  background: linear-gradient(180deg, var(--wood) 0%, var(--wood-dark) 100%);
+  border: 4px solid var(--ink);
+  box-shadow:
+    0 5px 0 rgba(0, 0, 0, 0.6),
+    inset 0 3px 0 rgba(244, 232, 208, 0.2),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.45),
+    inset 3px 0 0 rgba(244, 232, 208, 0.1),
+    inset -3px 0 0 rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  transition: transform 0.06s steps(2);
+}
+
+.hotbar-slot:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 8px 0 rgba(0, 0, 0, 0.6),
+    inset 0 3px 0 rgba(244, 232, 208, 0.3),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.45);
+}
+
+.hotbar-slot--active {
+  border-color: var(--gold);
+  box-shadow:
+    0 5px 0 rgba(0, 0, 0, 0.6),
+    0 0 12px 2px rgba(201, 162, 39, 0.55),
+    inset 0 3px 0 rgba(255, 217, 102, 0.35),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.45);
+}

@@ -5,13 +5,16 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import api from './auth/api';
 import { Container } from 'pixi.js';
 import { SceneManager } from '../engine/SceneManager';
+import { MultiplayerBridge } from '../engine/MultiplayerBridge';
 import { WorldScene } from '../scenes/WorldScene';
+import { useParty } from '../party/PartyContext';
 import type { WorldSeed } from '../types/SeedTypes';
 import type { RootResponse } from '../types/SeedTypes';
 import '@pixi/tilemap';
 
 import SampleData from '../assets/sample.json';
 import './PixiApp.css';
+import './ui/game-ui.css';
 extend({ Container });
 
 type LoadingPhase = 'connecting' | 'parsing' | 'downloading' | 'building' | 'done';
@@ -29,9 +32,24 @@ export default function PixiApp() {
   const location = useLocation();
   const repoUrl = location.state?.repoUrl;
 
+  const { party, remotePlayers, sendPosition, sendSceneTransition } = useParty();
+
   const [seed, setSeed] = useState<WorldSeed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [root, setRoot] = useState<Container | null>(null);
+
+  const bridgeRef = useRef<MultiplayerBridge | null>(null);
+  if (!bridgeRef.current) bridgeRef.current = new MultiplayerBridge();
+  const bridge = bridgeRef.current;
+
+  const localUserId = Number(localStorage.getItem('github_id')) || 0;
+
+  // Sync React state → bridge on every render
+  bridge.setRemotePlayers(remotePlayers);
+  bridge.setSendPosition(sendPosition);
+  bridge.setSendScene(sendSceneTransition);
+  bridge.setLocalUserId(localUserId);
+  bridge.setActive(!!party);
 
   // Loading progress state
   const [progress, setProgress] = useState(0);
@@ -49,7 +67,6 @@ export default function PixiApp() {
           setPhase('connecting');
           setProgress(0);
 
-          // Small delay to show connecting phase
           await new Promise(r => setTimeout(r, 300));
           if (cancelled) return;
 
@@ -65,13 +82,11 @@ export default function PixiApp() {
                 setPhase('downloading');
 
                 if (progressEvent.total) {
-                  // Known total — real percentage (mapped to 10-90 range)
                   const pct = Math.round((progressEvent.loaded / progressEvent.total) * 80) + 10;
                   setProgress(Math.min(pct, 90));
                 } else {
-                  // Unknown total — estimate based on bytes received
                   const loaded = progressEvent.loaded;
-                  const estimatedTotal = 500_000; // ~500KB estimate
+                  const estimatedTotal = 500_000;
                   const pct = Math.min(Math.round((loaded / estimatedTotal) * 80) + 10, 85);
                   setProgress(pct);
                 }
@@ -90,14 +105,12 @@ export default function PixiApp() {
           setPhase('building');
           setProgress(92);
 
-          // Brief pause to show building phase
           await new Promise(r => setTimeout(r, 400));
           if (cancelled) return;
 
           setProgress(100);
           setPhase('done');
 
-          // Let user see 100% briefly
           await new Promise(r => setTimeout(r, 500));
           if (cancelled) return;
 
@@ -120,7 +133,8 @@ export default function PixiApp() {
   useEffect(() => {
     if (!root || managerRef.current) return;
     managerRef.current = new SceneManager(root);
-  }, [root]);
+    managerRef.current.multiplayer = bridge;
+  }, [root, bridge]);
 
   useEffect(() => {
     if (!seed || !managerRef.current) return;
@@ -137,7 +151,6 @@ export default function PixiApp() {
         <pixiContainer ref={setRoot} />
       </Application>
 
-      {/* Home Button Overlay - only show when not loading to avoid clutter */}
       {!isLoading && !error && (
         <button
           onClick={() => navigate('/')}
@@ -161,14 +174,12 @@ export default function PixiApp() {
               </div>
             )}
 
-            {/* Progress bar container */}
             <div className="bar-container">
               <div className="bar-fill" style={{ width: `${progress}%` }}>
                 <div className="bar-shimmer" />
               </div>
             </div>
 
-            {/* Percentage + phase */}
             <div className="info-row">
               <span className="percent">{progress}%</span>
               <span className="phase">{PHASE_LABELS[phase]}</span>

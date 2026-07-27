@@ -3,6 +3,7 @@ export interface PartyMember {
   display_name: string;
   x: number;
   y: number;
+  direction?: string;
   scene: SceneRef;
 }
 

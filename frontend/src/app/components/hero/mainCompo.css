@@ -376,14 +376,6 @@
     flex: 1 0 calc(50% - 4px);
   }
 
-  .pixi-btn {
-    top: 10px;
-    bottom: auto;
-    transform: none;
-    right: 10px;
-    font-size: 10px;
-    padding: 8px 14px;
-  }
 }
 
 @media (max-width: 480px) {
@@ -398,29 +390,4 @@
   .example-btn {
     flex: 1 0 100%; /* Stack all examples for really thin screens */
   }
-}
-
-.pixi-btn {
-  position: absolute;
-  right: 20px;
-  top: 20px;
-  transform: none;
-
-  padding: 12px 24px;
-  background: #FCBD80;
-  color: #451B0B;
-  border: 2px solid #451B0B;
-  border-radius: 6px;
-
-  font-family: 'Press Start 2P', monospace;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-
-  display: flex;
-  align-items: center;
-  gap: 6px;
-
-  transition: all 0.2s ease;
-  z-index: 100;
 }

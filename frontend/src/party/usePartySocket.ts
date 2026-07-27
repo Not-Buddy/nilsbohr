@@ -6,11 +6,14 @@ type MessageHandler = (msg: PartyMessage) => void;
 export function usePartySocket(
   partyId: string | null,
   onMessage: MessageHandler,
+  onOpen?: () => void,
 ) {
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onMessageRef = useRef(onMessage);
+  const onOpenRef = useRef(onOpen);
   onMessageRef.current = onMessage;
+  onOpenRef.current = onOpen;
 
   const connect = useCallback(() => {
     if (!partyId) return;
@@ -24,6 +27,7 @@ export function usePartySocket(
 
     ws.onopen = () => {
       console.log('[Party WS] Connected');
+      onOpenRef.current?.();
     };
 
     ws.onmessage = (event) => {

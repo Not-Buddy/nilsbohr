@@ -9,6 +9,7 @@ import { WorldMiniMap } from '../engine/WorldMiniMap'
 import { GroundTiles } from '../engine/GroundGraphics/GroundTiles'
 import { GroundProps } from '../engine/GroundGraphics/GroundProps'
 import { GroundChunkManager } from '../engine/GroundGraphics/GroundChunkManager'
+import { RemotePlayer } from '../sprites/RemotePlayer'
 
 
 import type { Scene } from '../types/Types'
@@ -37,6 +38,8 @@ export class WorldScene implements Scene {
   private minimap?: WorldMiniMap
   private ground?: GroundTiles
   private spawnPosition?: { x: number; y: number }
+
+  private remotePlayerSprites = new Map<number, RemotePlayer>()
 
   // Support both old WorldSeed and new ProjectResponse formats
   private projectResponse?: ProjectResponse
@@ -190,6 +193,9 @@ export class WorldScene implements Scene {
 
     // Handle window resize for minimap
     window.addEventListener('resize', this.handleResize)
+
+    // Multiplayer: announce scene entry
+    this.manager.multiplayer?.sendSceneTransition({ type: 'world', id: 'overworld' })
   }
 
   private handleResize = (): void => {
@@ -206,6 +212,13 @@ export class WorldScene implements Scene {
     this.groundChunkManager?.update(this.player.sprite.x, this.player.sprite.y)
     this.player.update(dt, this.input)
 
+    // Multiplayer: send position + render remote players
+    const bridge = this.manager.multiplayer
+    if (bridge) {
+      const pos = this.player.getPosition()
+      bridge.sendPosition(pos.x, pos.y, this.player.getDirection())
+      this.updateRemotePlayers(bridge, this.camera.container)
+    }
 
     // Update minimap player position
     this.minimap?.updatePlayerPosition(this.player.sprite.x, this.player.sprite.y)
@@ -314,6 +327,27 @@ export class WorldScene implements Scene {
     return rectA.intersects(rectB)
   }
 
+  private updateRemotePlayers(bridge: import('../engine/MultiplayerBridge').MultiplayerBridge, parent: Container) {
+    const remotes = bridge.getRemotePlayersInScene()
+
+    for (const member of remotes) {
+      if (!this.remotePlayerSprites.has(member.user_id)) {
+        const rp = new RemotePlayer(member)
+        parent.addChild(rp.container)
+        this.remotePlayerSprites.set(member.user_id, rp)
+      }
+      const rp = this.remotePlayerSprites.get(member.user_id)!
+      rp.update(member)
+    }
+
+    for (const [id, rp] of this.remotePlayerSprites) {
+      if (!remotes.find(p => p.user_id === id)) {
+        rp.destroy()
+        this.remotePlayerSprites.delete(id)
+      }
+    }
+  }
+
   unmount() {
     window.removeEventListener('resize', this.handleResize)
     this.input?.destroy()
@@ -321,6 +355,9 @@ export class WorldScene implements Scene {
     this.chunkManager?.destroy()
     this.enterPrompt?.destroy()
     this.minimap?.destroy()
+
+    for (const [_id, rp] of this.remotePlayerSprites) rp.destroy()
+    this.remotePlayerSprites.clear()
 
     this.input = undefined
     this.player = undefined

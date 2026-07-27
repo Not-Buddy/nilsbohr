@@ -12,6 +12,7 @@ import { Input } from '../engine/Inputs'
 import { Camera } from '../engine/Camera'
 import { createRoomSprite, layoutRooms } from '../sprites/Room'
 import { createArtifactSprite, layoutArtifacts } from '../sprites/ArtifactSprite'
+import { RemotePlayer } from '../sprites/RemotePlayer'
 
 export class BuildingScene implements Scene {
     container = new Container()
@@ -29,6 +30,7 @@ export class BuildingScene implements Scene {
     private roomBounds: CollisionRect[] = []
     private nearbyRoom?: Room
     private enterPrompt?: Container
+    private remotePlayerSprites = new Map<number, RemotePlayer>()
 
     // World navigation context
     private worldSeed?: WorldSeed | ProjectResponse
@@ -209,6 +211,9 @@ export class BuildingScene implements Scene {
         this.camera.setBounds(this.worldBounds)
         this.camera.follow(this.player.sprite)
         this.camera.snapToTarget()
+
+        // Multiplayer: announce scene entry
+        this.manager.multiplayer?.sendSceneTransition({ type: 'building', id: this.building.spec.id })
     }
 
     update(dt: number) {
@@ -216,6 +221,25 @@ export class BuildingScene implements Scene {
 
         this.player.update(dt, this.input)
         this.camera.update(dt)
+
+        // Multiplayer: send position + render remote players
+        const bridge = this.manager.multiplayer
+        if (bridge) {
+            const pos = this.player.getPosition()
+            bridge.sendPosition(pos.x, pos.y, this.player.getDirection())
+            const remotes = bridge.getRemotePlayersInScene()
+            for (const member of remotes) {
+                if (!this.remotePlayerSprites.has(member.user_id)) {
+                    const rp = new RemotePlayer(member)
+                    this.camera.container.addChild(rp.container)
+                    this.remotePlayerSprites.set(member.user_id, rp)
+                }
+                this.remotePlayerSprites.get(member.user_id)!.update(member)
+            }
+            for (const [id, rp] of this.remotePlayerSprites) {
+                if (!remotes.find(p => p.user_id === id)) { rp.destroy(); this.remotePlayerSprites.delete(id) }
+            }
+        }
 
         // Check for ESC to exit
         if (this.input.isJustPressed('Escape')) {
@@ -319,6 +343,8 @@ export class BuildingScene implements Scene {
     unmount() {
         this.input?.destroy()
         this.player?.destroy()
+        for (const [_id, rp] of this.remotePlayerSprites) rp.destroy()
+        this.remotePlayerSprites.clear()
         this.container.destroy({ children: true })
         this.mounted = false
     }

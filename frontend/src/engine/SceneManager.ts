@@ -1,11 +1,13 @@
 import { Container, Ticker } from 'pixi.js'
 import type { Scene } from '../types/Types';
+import type { MultiplayerBridge } from './MultiplayerBridge';
 
 // engine/SceneManager.ts
 export class SceneManager {
   private current?: Scene;
   private mounted = false;
   private stage: Container;
+  multiplayer?: MultiplayerBridge;
 
   constructor(stage: Container) {
     this.stage = stage;

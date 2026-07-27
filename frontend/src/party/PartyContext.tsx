@@ -1,6 +1,6 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from 'react';
 import { usePartySocket } from './usePartySocket';
-import type { Party, PartyMember, PartyMessage } from '../types/PartyTypes';
+import type { Party, PartyMember, PartyMessage, SceneRef } from '../types/PartyTypes';
 import api from '../app/auth/api';
 
 interface PartyContextType {
@@ -10,6 +10,7 @@ interface PartyContextType {
   joinParty: (partyId: string) => Promise<void>;
   leaveParty: () => void;
   sendPosition: (x: number, y: number, direction: string) => void;
+  sendSceneTransition: (scene: SceneRef) => void;
   remotePlayers: PartyMember[];
 }
 
@@ -19,6 +20,7 @@ export function PartyProvider({ children }: { children: ReactNode }) {
   const [party, setParty] = useState<Party | null>(null);
   const [remotePlayers, setRemotePlayers] = useState<PartyMember[]>([]);
   const userId = Number(localStorage.getItem('github_id'));
+  const username = localStorage.getItem('username') || 'Player';
 
   const handleMessage = useCallback((msg: PartyMessage) => {
     switch (msg.type) {
@@ -27,7 +29,7 @@ export function PartyProvider({ children }: { children: ReactNode }) {
         break;
       case 'PlayerMove':
         setRemotePlayers(prev =>
-          prev.map(p => p.user_id === msg.user_id ? { ...p, x: msg.x, y: msg.y } : p)
+          prev.map(p => p.user_id === msg.user_id ? { ...p, x: msg.x, y: msg.y, direction: msg.direction } : p)
         );
         break;
       case 'PlayerEnteredScene':
@@ -42,6 +44,21 @@ export function PartyProvider({ children }: { children: ReactNode }) {
   }, [userId]);
 
   const { send } = usePartySocket(party?.id ?? null, handleMessage);
+
+  const sentJoinRef = useRef(false);
+
+  useEffect(() => {
+    if (party && !sentJoinRef.current) {
+      sentJoinRef.current = true;
+      const timer = setTimeout(() => {
+        send({ type: 'Join', user_id: userId, display_name: username });
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+    if (!party) {
+      sentJoinRef.current = false;
+    }
+  }, [party, userId, username, send]);
 
   const createParty = useCallback(async (repoUrl: string): Promise<string> => {
     const res = await api.post('/parties', { repo_url: repoUrl });
@@ -59,8 +76,8 @@ export function PartyProvider({ children }: { children: ReactNode }) {
   const joinParty = useCallback(async (_partyId: string) => {
     const res = await api.get(`/parties/${_partyId}`);
     setParty(res.data);
-    send({ type: 'Join', user_id: userId, display_name: '' });
-  }, [userId, send]);
+    sentJoinRef.current = false;
+  }, []);
 
   const leaveParty = useCallback(() => {
     send({ type: 'Leave', user_id: userId });
@@ -72,6 +89,10 @@ export function PartyProvider({ children }: { children: ReactNode }) {
     send({ type: 'PlayerMove', user_id: userId, x, y, direction });
   }, [userId, send]);
 
+  const sendSceneTransition = useCallback((scene: SceneRef) => {
+    send({ type: 'PlayerEnteredScene', user_id: userId, scene });
+  }, [userId, send]);
+
   return (
     <PartyContext.Provider
       value={{
@@ -81,6 +102,7 @@ export function PartyProvider({ children }: { children: ReactNode }) {
         joinParty,
         leaveParty,
         sendPosition,
+        sendSceneTransition,
         remotePlayers,
       }}
     >

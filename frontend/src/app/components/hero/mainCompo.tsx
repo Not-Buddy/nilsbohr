@@ -23,12 +23,7 @@ export default function MainCompo() {
 
   return (
     <div className="main-container">
-
-      {/*pixi testing*/}
-      <button onClick={() => navigate('/game')} className="pixi-btn">
-        Pixi
-      </button>
-
+      
       {/* Left sidebar — User's repos */}
       <aside className="repo-sidebar">
         <RepoList onSelect={(url) => setRepoUrl(url)} />

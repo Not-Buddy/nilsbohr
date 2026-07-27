@@ -5,7 +5,7 @@ export default function Footer() {
     <>
       <footer className="footer">
         <div className="footer-content">
-          <span>Built By Daddy</span>
+          <span>Built By Buddy</span>
         </div>
       </footer>
     </>

@@ -11,6 +11,7 @@ import { SeededRandom } from '../engine/SeededRandom'
 import { CityGenerator } from '../engine/CityGenerator'
 import { Minimap } from '../engine/Minimap'
 import { BuildingScene } from './BuildingScene'
+import { RemotePlayer } from '../sprites/RemotePlayer'
 import { assignBiomes, type BiomePalette } from '../engine/CityGenerator/BiomeConfig'
 import { renderCityGround } from '../engine/CityGenerator/CityGroundRenderer'
 import { generateRoads, renderRoads } from '../engine/CityGenerator/RoadNetwork'
@@ -32,6 +33,7 @@ export class CityScene implements Scene {
   private nearbyBuilding?: Building
   private enterPrompt?: Container
   private emptyPrompt?: Container
+  private remotePlayerSprites = new Map<number, RemotePlayer>()
   private manager: SceneManager
   private spawnPosition?: { x: number; y: number }
   private worldSeed?: WorldSeed | ProjectResponse
@@ -256,6 +258,9 @@ export class CityScene implements Scene {
 
     // Handle window resize for minimap positioning
     window.addEventListener('resize', this.handleResize)
+
+    // Multiplayer: announce scene entry
+    this.manager.multiplayer?.sendSceneTransition({ type: 'city', id: this.city.spec.id })
   }
 
   private handleResize = (): void => {
@@ -266,6 +271,25 @@ export class CityScene implements Scene {
     if (!this.player || !this.input) return
     this.player.update(dt, this.input)
     this.camera.update(dt)
+
+    // Multiplayer: send position + render remote players
+    const bridge = this.manager.multiplayer
+    if (bridge) {
+      const pos = this.player.getPosition()
+      bridge.sendPosition(pos.x, pos.y, this.player.getDirection())
+      const remotes = bridge.getRemotePlayersInScene()
+      for (const member of remotes) {
+        if (!this.remotePlayerSprites.has(member.user_id)) {
+          const rp = new RemotePlayer(member)
+          this.camera.container.addChild(rp.container)
+          this.remotePlayerSprites.set(member.user_id, rp)
+        }
+        this.remotePlayerSprites.get(member.user_id)!.update(member)
+      }
+      for (const [id, rp] of this.remotePlayerSprites) {
+        if (!remotes.find(p => p.user_id === id)) { rp.destroy(); this.remotePlayerSprites.delete(id) }
+      }
+    }
 
     // Update minimap with player position
     if (this.minimap && this.player) {
@@ -420,6 +444,8 @@ export class CityScene implements Scene {
     this.input?.destroy()
     this.player?.destroy()
     this.minimap?.destroy()
+    for (const [_id, rp] of this.remotePlayerSprites) rp.destroy()
+    this.remotePlayerSprites.clear()
     this.container.destroy({ children: true })
     this.mounted = false
   }
