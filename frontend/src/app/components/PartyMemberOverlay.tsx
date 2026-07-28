@@ -1,4 +1,5 @@
 import type { PartyMember } from '../../types/PartyTypes';
+import './PartyMemberOverlay.css';
 
 export function PartyMemberOverlay({ remotePlayers }: { remotePlayers: PartyMember[] }) {
   return (
