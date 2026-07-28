@@ -38,7 +38,8 @@ body {
 .page-back-btn {
   position: fixed;
   top: 80px;
-  left: 20px;
+  right: 20px;
+  left: auto;
   z-index: 1000;
   padding: 10px 14px;
   background: #FCBD80;
@@ -66,7 +67,7 @@ body {
 @media (max-width: 600px) {
   .page-back-btn {
     top: 90px;
-    left: 12px;
+    right: 12px;
     font-size: 10px;
     padding: 8px 10px;
   }
