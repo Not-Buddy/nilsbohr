@@ -10,6 +10,7 @@ import LandingPage from './pages/LandingPage';
 import Home from './pages/Home';
 import CallbackPage from './pages/CallbackPage';
 import PartyLobbyPage from './pages/PartyLobbyPage';
+import SelectRepoPage from './pages/SelectRepoPage';
 import PixiApp from './PixiApp';
 import './App.css';
 
@@ -38,6 +39,10 @@ function App() {
                 <ProtectedRoute>
                   <PartyLobbyPage />
                 </ProtectedRoute>
+              } />
+
+              <Route path="/select-repo" element={
+                <ProtectedRoute><SelectRepoPage /></ProtectedRoute>
               } />
 
               <Route path="/game" element={

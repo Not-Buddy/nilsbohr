@@ -1,0 +1,84 @@
+.lobby-panel {
+  width: 500px;
+  max-width: 100%;
+  padding: 40px 36px;
+}
+
+.lobby-title-wrapper {
+  margin-bottom: 20px;
+}
+
+.lobby-section {
+  margin-bottom: 20px;
+}
+
+.lobby-section-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  color: var(--wood);
+  margin-bottom: 12px;
+  line-height: 1.6;
+}
+
+.lobby-divider {
+  border: none;
+  border-top: 2px solid var(--ink);
+  opacity: 0.2;
+  margin: 24px 0;
+}
+
+.lobby-party-id {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: var(--ink);
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.lobby-party-id code {
+  color: var(--gold);
+  font-weight: bold;
+  background: var(--ink);
+  padding: 2px 8px;
+}
+
+.lobby-member-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.lobby-member-list li {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  color: var(--ink);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--parchment-dark);
+}
+
+.lobby-member-list li:last-child {
+  border-bottom: none;
+}
+
+.lobby-btn-full {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.lobby-btn-full:last-child {
+  margin-bottom: 0;
+}
+
+@media (max-width: 600px) {
+  .lobby-panel {
+    padding: 24px 16px;
+  }
+
+  .lobby-card-title {
+    font-size: 22px;
+  }
+
+  .lobby-section-title {
+    font-size: 9px;
+  }
+}

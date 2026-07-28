@@ -6,7 +6,7 @@ use crate::auth::models::{GitHubTokenResponse, GitHubUser};
 
 /// Build the GitHub OAuth authorization URL that the user's browser is redirected to.
 pub fn build_authorize_url(config: &AuthConfig, frontend_url: &str) -> String {
-    let redirect_uri = format!("{}/auth/callback", frontend_url);
+    let redirect_uri = format!("{}/api/auth/callback", frontend_url);
     format!(
         "https://github.com/login/oauth/authorize?client_id={}&redirect_uri={}&scope=read:user%20user:email",
         config.github_client_id, urlencoding(&redirect_uri)
